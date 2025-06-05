@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <title>流式分页内容展示</title>
+    <style>
+      body {
+        font-family: monospace;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      #output {
+        white-space: pre-wrap;
+        background: #fff;
+        border: 1px solid #ccc;
+        padding: 16px;
+        min-height: 300px;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .page-block {
+        border-bottom: 1px dashed #ccc;
+        margin-bottom: 1em;
+        padding-bottom: 1em;
+      }
+      a {
+        color: #0077cc;
+        text-decoration: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>流式数据一屏分页展示</h2>
+    <div id="output"></div>
+
+    <script>
+      const output = document.getElementById("output");
+      let ragContentBuffer = "";
+      let sourceTitles = [];
+      let sourceUrls = [];
+
+      function appendText(text) {
+        const span = document.createElement("div");
+        span.textContent = text;
+        output.appendChild(span);
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function renderPageBlocks(ragContent) {
+        const matches = ragContent.match(
+          /\[page \d+ begin](.*?)\[page \d+ end]/gs
+        );
+        if (!matches) return;
+
+        matches.forEach((match, index) => {
+          const content = match
+            .replace(/\[page \d+ (begin|end)]/g, "")
+            .replace(/\\n/g, "\n")
+            .trim();
+
+          const block = document.createElement("div");
+          block.className = "page-block";
+
+          const header = document.createElement("div");
+          header.textContent = `📄 第 ${index + 1} 页`;
+          header.style.fontWeight = "bold";
+          block.appendChild(header);
+
+          const body = document.createElement("pre");
+          body.textContent = content;
+          block.appendChild(body);
+
+          if (sourceTitles[index] && sourceUrls[index]) {
+            const link = document.createElement("a");
+            link.href = sourceUrls[index];
+            link.textContent = `🔗 来源：${sourceTitles[index]}`;
+            link.target = "_blank";
+            block.appendChild(link);
+          }
+
+          output.appendChild(block);
+        });
+      }
+
+      async function fetchStreamData() {
+        const response = await fetch("/api/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query: "手机的评分怎么样" }),
+        });
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          const matches = buffer.match(/({.*?})(?={|$)/gs);
+          if (matches) {
+            for (const str of matches) {
+              try {
+                const json = JSON.parse(str);
+
+                if (json.step === "rewrittenMessage" && json.phase === "end") {
+                  appendText(`🔄 用户提问改写：${json.content}`);
+                }
+
+                if (json.step === "intentCheck" && json.phase === "end") {
+                  appendText(`🔍 意图识别：${json.content}`);
+                }
+
+                if (json.step === "ragQuery" && json.content) {
+                  ragContentBuffer = json.content;
+                  sourceTitles = json.source_title || [];
+                  sourceUrls = json.source_url || [];
+                }
+
+                if (json.step === "finalSummary" && json.content) {
+                  appendText(`📌 总结：${json.content}`);
+                }
+              } catch (e) {
+                // 不处理不完整 JSON
+              }
+            }
+            buffer = ""; // 清空 buffer 以防重复处理
+          }
+        }
+
+        // 流结束后再渲染分页内容
+        if (ragContentBuffer) {
+          renderPageBlocks(ragContentBuffer);
+        }
+      }
+
+      fetchStreamData();
+    </script>
+  </body>
+</html>

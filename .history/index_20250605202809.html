@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="white-space: pre-wrap; font-family: monospace; line-height: 1.6"
+    ></div>
+  </body>
+  <script>
+    const rawStr = `{"step":"rewrittenMessage","phase":"start"}
+    {"step":"rewrittenMessage","phase":"end","content":"手机的评分怎么样"}
+    {"step":"intentCheck","phase":"start"}{"step":"intentCheck","phase":"end","content":"产品查询"}
+    {"step":"ragQuery","phase":"start"}
+    {"content":"[page 0 begin]许可项目\n手机 许可计划\n了解更多\nWi-Fi许可计划\n了解更多\n蜂窝物联网许可计划\n了解更多\n创新投入与知识产权成果\n持续创新投入是华为基业长青的基石，华为高度重视技术创新与研究，坚持将每年收入的10%以上投入到研发，过去三年，高达20%以上。GLOMO罪行啊社会去额前额为。[page 0  end][page 1 begin] 手机 与穿戴\n 手机 沙发沙发萨佛安排微软撒入啊无胚乳[page 1 end][page 2 begin]手机 许可计划\n我啊啊啊二啊飞机票委任为如哇让啊二哦啊二app奥佩容儿偶尔譬如怕我[page 2 end]",
+    "source_url":["www.baidu.com","kweweb-rhsl.huawei.com/cn/products/connectivity/smartphone-wearable.html"],
+    "source_title":["666","手机与穿戴"，"手机许可计划"]}
+    {"step":"finalSummary","phase":"start"}
+    安抚还饿沙俄我日哦安慰后悔阿尔文然后五花肉为安徽让我i和啊我日哈我让毫无热火华为偶然好温柔好温柔和哈我而忽然。
+    {"step":"finalSummary","phase":"end"}`;
+
+    // 更准确的JSON解析函数
+    function parseJsonObjects(str) {
+      const results = [];
+      let buffer = "";
+      let inObject = false;
+      let braceCount = 0;
+
+      // 遍历每个字符
+      for (let char of str) {
+        if (char === "{") {
+          inObject = true;
+          braceCount++;
+        }
+
+        if (inObject) {
+          buffer += char;
+        }
+
+        if (char === "}") {
+          braceCount--;
+          if (braceCount === 0) {
+            try {
+              const parsed = JSON.parse(buffer);
+              results.push(parsed);
+            } catch (e) {
+              console.error("解析错误:", buffer);
+            }
+            buffer = "";
+            inObject = false;
+          }
+        }
+      }
+      return results;
+    }
+
+    // 解析所有JSON对象
+    const parsedObjects = parseJsonObjects(rawStr);
+    console.log("解析结果:", parsedObjects);
+
+    // 提取所有content内容
+    const contentArray = parsedObjects.filter((obj) => obj && obj.content);
+    console.log("Content内容:", contentArray);
+
+    const output = document.getElementById("output");
+    output.innerHTML = "";
+
+    // 格式化显示函数
+    function formatContent(content) {
+      // 处理分页标记
+      return content
+        .replace(/\[page \d+ (?:begin|end)\]/g, "")
+        .split("\n")
+        .filter((line) => line.trim())
+        .join("\n");
+    }
+
+    // 打字效果函数
+    async function typeText(text, container, delay = 30) {
+      const formattedText = formatContent(text);
+      for (let i = 0; i < formattedText.length; i++) {
+        container.textContent += formattedText[i];
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+      container.textContent += "\n\n";
+    }
+
+    // 渲染函数
+    async function renderAll() {
+      for (const item of contentArray) {
+        const container = document.createElement("div");
+        container.style.marginBottom = "20px";
+        container.style.padding = "10px";
+        container.style.border = "1px solid #eee";
+        container.style.borderRadius = "5px";
+
+        if (item.step) {
+          const stepLabel = document.createElement("div");
+          stepLabel.style.fontWeight = "bold";
+          stepLabel.style.color = "#666";
+          stepLabel.style.marginBottom = "5px";
+          stepLabel.textContent = `步骤: ${item.step}`;
+          container.appendChild(stepLabel);
+        }
+
+        const contentDiv = document.createElement("div");
+        container.appendChild(contentDiv);
+        output.appendChild(container);
+
+        await typeText(item.content, contentDiv, 20);
+      }
+    }
+
+    renderAll();
+  </script>
+</html>
