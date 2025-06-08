@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="
+        font-family: monospace;
+        white-space: pre-wrap;
+        max-height: 300px;
+        overflow-y: auto;
+      "
+    ></div>
+    <script>
+      const $output = $("#output");
+      const md = window.markdownit();
+      let fullText = "";
+      let lastLength = 0;
+
+      // 模拟流式返回的数据块
+      const simulatedChunks = [
+        "你好，欢迎使用我们的服务。\n\n",
+        "这是文档链接：[doc:789]\n",
+        "这是用户信息：[user:456]\n",
+        "介绍组件：[cations:12] 非常有用。\n\n",
+        "**我们支持 Markdown！**\n\n",
+        "感谢支持！[cations:88]\n",
+      ];
+
+      // 扩展链接替换函数：支持多种类型
+      function replaceSpecialLinks(html) {
+        return html
+          .replace(
+            /\[cations:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/cations/${id}" target="_blank" rel="noopener">[cations:${id}]</a>`
+          )
+          .replace(
+            /\[user:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/user/${id}" target="_blank" rel="noopener">[user:${id}]</a>`
+          )
+          .replace(
+            /\[doc:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/doc/${id}" target="_blank" rel="noopener">[doc:${id}]</a>`
+          );
+      }
+
+      // 将新增文本转为 HTML 并 append（不清空旧内容）
+      function renderIncrement() {
+        if (!newText.trim()) return;
+        const rendered = md.render(fullText);
+        // const replaced = replaceSpecialLinks(rendered);
+        // const $block = $("<div></div>").html(replaced);
+        $output.append(rendered);
+        $output[0].scrollTop = $output[0].scrollHeight;
+      }
+
+      // 流式模拟函数（逐字显示）
+      async function mockFetchStream() {
+        for (const chunk of simulatedChunks) {
+          for (const char of chunk) {
+            fullText += char;
+            await new Promise((r) => setTimeout(r, 30));
+
+            if (fullText.length - lastLength >= 10 || char === "\n") {
+              renderIncrement();
+            }
+          }
+        }
+        renderIncrement(); // 收尾
+      }
+
+      mockFetchStream();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="font-family: monospace; white-space: pre-wrap"
+    ></div>
+    <script>
+      const $output = $("#output");
+      const md = window.markdownit();
+      let fullText = "";
+      let pendingUpdate = false;
+
+      // 模拟输入内容
+      const simulatedChunks = [
+        "你好，欢迎使用我们的服务。\n\n",
+        "我们要介绍组件：[cations:12]。\n\n",
+        "- 列表项：**支持 Markdown**\n",
+        "- 文档入口：[cations:99]\n\n",
+        "感谢使用！[cations:88]",
+      ];
+
+      // 替换 [cations:x] 成链接
+      function replaceSpecialLinks(html) {
+        return html.replace(/\[cations:(\d+)\]/g, (_, num) => {
+          return `<a href="/cations/${num}" target="_blank" rel="noopener">[cations:${num}]</a>`;
+        });
+      }
+
+      // 节流渲染逻辑：避免每个字符都更新 DOM
+      function scheduleRender() {
+        if (pendingUpdate) return;
+
+        pendingUpdate = true;
+        setTimeout(() => {
+          const html = replaceSpecialLinks(md.render(fullText));
+          $output.html(html);
+          pendingUpdate = false;
+        }, 100); // 每 100ms 更新一次
+      }
+
+      // 每接收到一个字符时触发
+      function handleChar(char) {
+        fullText += char;
+        scheduleRender();
+      }
+
+      // 模拟流式字符到达
+      async function mockFetchStream() {
+        for (const chunk of simulatedChunks) {
+          for (const char of chunk) {
+            await new Promise((r) => setTimeout(r, 30)); // 打字节奏
+            handleChar(char);
+          }
+        }
+      }
+
+      mockFetchStream();
+    </script>
+  </body>
+</html>

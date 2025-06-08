@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="font-family: monospace; white-space: pre-wrap"
+    ></div>
+    <script>
+      const $output = $("#output");
+      const md = window.markdownit();
+      let fullText = "";
+
+      // 模拟流式 fetch 的数据
+      const simulatedChunks = [
+        "你好，欢迎使用我们的服务。\n\n",
+        "接下来我们要介绍一个组件：[cat",
+        "ions:12]。\n\n你可以在文档中查找更多内容：\n\n",
+        "- 使用方式：`[cations:12]`\n",
+        "- 文档位置：[cations:99]\n",
+        "- 也可以加粗文字 **支持 Markdown**\n\n",
+        "感谢你的阅读！",
+      ];
+
+      // 链接替换：将 [cations:x] 替换成 <a> 标签
+      function replaceSpecialLinks(html) {
+        return html.replace(/\[cations:(\d+)\]/g, (_, num) => {
+          return `<a href="/cations/${num}" target="_blank" rel="noopener">[cations:${num}]</a>`;
+        });
+      }
+
+      // 每个字符处理逻辑
+      function handleChar(char) {
+        fullText += char;
+
+        // markdown 渲染
+        const html = md.render(fullText);
+
+        // 替换链接语法
+        const replaced = replaceSpecialLinks(html);
+
+        // 更新页面
+        $output.html(replaced);
+      }
+
+      // 模拟字符逐个到达
+      async function mockFetchStream() {
+        for (const chunk of simulatedChunks) {
+          for (const char of chunk) {
+            await new Promise((r) => setTimeout(r, 30)); // 打字节奏
+            handleChar(char);
+          }
+        }
+      }
+
+      mockFetchStream();
+    </script>
+  </body>
+</html>

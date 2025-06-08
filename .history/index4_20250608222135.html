@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="font-family: monospace; white-space: pre-wrap"
+    ></div>
+    <script>
+      const $output = $("#output");
+      const md = window.markdownit();
+      let buffer = "";
+      let lastFlushedIndex = 0;
+
+      // 模拟流式返回（细碎字符）
+      const simulatedChunks = [
+        "你好，欢迎使用我们的服务。\n\n",
+        "[c",
+        "ations",
+        ":",
+        "2",
+        "]\n",
+        "这是文档链接：[doc:789]\n",
+        "这是用户信息：[user:456]\n",
+        "介绍组件：[cations:12] 非常有用。\n\n",
+        "**我们支持 Markdown！**\n\n",
+        "感谢支持！[cations:88]\n",
+      ];
+
+      // 替换特殊标签为链接
+      function replaceSpecialLinks(html) {
+        return html
+          .replace(
+            /\[cations:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/cations/${id}" target="_blank" rel="noopener">[cations:${id}]</a>`
+          )
+          .replace(
+            /\[user:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/user/${id}" target="_blank" rel="noopener">[user:${id}]</a>`
+          )
+          .replace(
+            /\[doc:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/doc/${id}" target="_blank" rel="noopener">[doc:${id}]</a>`
+          );
+      }
+
+      // 尝试渲染并追加 DOM（只渲染最后一次处理之后的部分）
+      function tryFlushBuffer() {
+        const currentText = buffer.slice(lastFlushedIndex);
+
+        // 如果没有换行也没有结尾 ']'，说明是中间状态，不渲染
+        if (!/\n|\]/.test(currentText)) return;
+
+        const rendered = md.render(currentText);
+        const replaced = replaceSpecialLinks(rendered);
+
+        $output.append(replaced);
+        lastFlushedIndex = buffer.length;
+
+        // 自动滚动
+        $output[0].scrollTop = $output[0].scrollHeight;
+      }
+
+      // 模拟流式 fetch
+      async function mockFetchStream() {
+        for (const chunk of simulatedChunks) {
+          buffer += chunk;
+          await new Promise((r) => setTimeout(r, 300));
+
+          tryFlushBuffer();
+        }
+
+        // 最后兜底刷新一次
+        tryFlushBuffer();
+      }
+      mockFetchStream();
+    </script>
+  </body>
+</html>

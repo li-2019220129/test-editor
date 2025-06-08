@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="font-family: monospace; white-space: pre-wrap"
+    ></div>
+    <script>
+      const md = window
+        .markdownit()
+        .use(window.markdownitLinkAttributes, {
+          pattern: /^https?:\/\//, // 所有 http/https 链接
+          attrs: {
+            target: "_blank",
+            rel: "noopener",
+          },
+        })
+        .use(window.markdownitLinkAttributes, {
+          pattern: /./, // 所有链接（包括相对链接）都适用
+          attrs: {
+            target: "_blank",
+            rel: "noopener",
+          },
+        });
+
+      // 示例
+      const html = md.render(
+        "这是一个 [Google](https://google.com) 链接，也可以是 [内部](/some-page)"
+      );
+      document.body.innerHTML = html;
+    </script>
+  </body>
+</html>

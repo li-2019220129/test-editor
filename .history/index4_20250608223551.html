@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="font-family: monospace; white-space: pre-wrap"
+    ></div>
+    <script>
+      const defaultRender =
+        md.renderer.rules.link_open ||
+        function (tokens, idx, options, env, self) {
+          return self.renderToken(tokens, idx, options);
+        };
+
+      md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+        const aIndex = tokens[idx].attrIndex("target");
+        if (aIndex < 0) {
+          tokens[idx].attrPush(["target", "_blank"]); // add new attribute
+        } else {
+          tokens[idx].attrs[aIndex][1] = "_blank"; // replace value
+        }
+
+        return defaultRender(tokens, idx, options, env, self);
+      };
+
+      // 示例
+      const html = md.render(
+        "这是一个 [Google](https://google.com) 链接，也可以是 [内部](/some-page)"
+      );
+      document.body.innerHTML = html;
+    </script>
+  </body>
+</html>

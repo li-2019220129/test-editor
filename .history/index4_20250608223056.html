@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  </head>
+  <body>
+    <div
+      id="output"
+      style="font-family: monospace; white-space: pre-wrap"
+    ></div>
+    <script>
+      const md = window.markdownit();
+      const output = document.getElementById("output");
+
+      // 模拟流式分段字符数组（你也可以换成 fetch）
+      const simulatedChunks = [
+        "欢迎访问我们的系统。\n\n",
+        "您可以查看以下资源：\n",
+        "- 组件介绍：[c",
+        "ations",
+        ":",
+        "101",
+        "]\n",
+        "- 使用文档：[doc:202]\n",
+        "- 用户资料：[user:303]\n\n",
+        "感谢使用！如果有问题，请参考 [doc:404] 或联系 [user:999]。\n",
+      ];
+
+      // 替换特殊链接为 HTML <a>
+      function replaceSpecialLinks(html) {
+        return html
+          .replace(
+            /\[cations:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/cations/${id}" target="_blank">[cations:${id}]</a>`
+          )
+          .replace(
+            /\[doc:(\d+)\]/g,
+            (_, id) => `<a href="/doc/${id}" target="_blank">[doc:${id}]</a>`
+          )
+          .replace(
+            /\[user:(\d+)\]/g,
+            (_, id) => `<a href="/user/${id}" target="_blank">[user:${id}]</a>`
+          );
+      }
+
+      // 将 HTML 字符串按结构逐字符输出
+      async function typeHtmlByNode(html) {
+        const temp = document.createElement("div");
+        temp.innerHTML = html;
+
+        for (const node of temp.childNodes) {
+          if (node.nodeType === Node.TEXT_NODE) {
+            for (const char of node.textContent) {
+              output.appendChild(document.createTextNode(char));
+              await sleep(15);
+              scrollToBottom();
+            }
+          } else if (node.nodeType === Node.ELEMENT_NODE) {
+            const el = node.cloneNode(false);
+            output.appendChild(el);
+
+            // 打字子内容（如链接文本）
+            for (const child of node.childNodes) {
+              if (child.nodeType === Node.TEXT_NODE) {
+                for (const char of child.textContent) {
+                  el.appendChild(document.createTextNode(char));
+                  await sleep(15);
+                  scrollToBottom();
+                }
+              }
+            }
+          }
+        }
+      }
+
+      function scrollToBottom() {
+        output.scrollTop = output.scrollHeight;
+      }
+
+      function sleep(ms) {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+      }
+
+      // 主渲染逻辑
+      async function streamTypeMarkdown(chunks) {
+        let buffer = "";
+
+        for (const chunk of chunks) {
+          for (const char of chunk) {
+            buffer += char;
+
+            // 如果检测到一个换行或 ']'，说明可能是完整段落或 token
+            if (char === "\n" || char === "]") {
+              // 渲染整段 markdown，然后拆出来打字
+              const html = replaceSpecialLinks(md.render(buffer));
+              buffer = "";
+              await typeHtmlByNode(html);
+            }
+
+            await sleep(10); // 模拟字符接收间隔
+          }
+        }
+
+        // 收尾
+        if (buffer.trim()) {
+          const html = replaceSpecialLinks(md.render(buffer));
+          await typeHtmlByNode(html);
+        }
+      }
+
+      streamTypeMarkdown(simulatedChunks);
+    </script>
+  </body>
+</html>
