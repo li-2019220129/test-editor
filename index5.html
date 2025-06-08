@@ -60,9 +60,7 @@
         const rendered = md.render(newText);
         const replaced = replaceSpecialLinks(rendered);
         $output.append(replaced);
-
         lastLength = fullText.length;
-
         // 自动滚动到底部
         $output[0].scrollTop = $output[0].scrollHeight;
       }
