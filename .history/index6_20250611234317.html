@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Streaming Markdown with Real Citation Links</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      max-width: 800px;
+      margin: 20px auto;
+      padding: 10px;
+    }
+    .output {
+      border: 1px solid #ccc;
+      padding: 10px;
+      min-height: 200px;
+    }
+    a {
+      color: blue;
+    }
+  </style>
+</head>
+<body>
+  <h2>Streaming Markdown Output</h2>
+  <div id="output" class="output"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify/dist/purify.min.js"></script>
+
+  <script>
+    const outputEl = document.getElementById('output');
+
+    let fullText = '';
+    let lastHTML = '';
+
+    const citationLinks = {
+      0: "https://openai.com/research/gpt-4",
+      1: "https://arxiv.org/abs/1706.03762"
+    };
+
+    const chunks = [
+      "# GPT Model\n",
+      "Here we discuss GPT-4 [citation:0]. ",
+      "And reference the original Transformer paper [citation:1].\n",
+      "Here's some code:\n```js\nconsole.log('hi')\n```\nDone!"
+    ];
+
+    let index = 0;
+
+    function transformCitation(text) {
+      return text.replace(/\[citation:(\d+)\]/g, (_, num) => {
+        const href = citationLinks[num] || '#';
+        const n = Number(num) + 1;
+        return `<a href="${href}" target="_blank" rel="noopener" class="citation-link">[${n}]</a>`;
+      });
+    }
+
+    function streamNextChunk() {
+      if (index >= chunks.length) return;
+
+      fullText += chunks[index++];
+      const markdownWithLinks = transformCitation(fullText);
+      const html = DOMPurify.sanitize(marked.parse(markdownWithLinks));
+
+      const delta = html.slice(lastHTML.length);
+      lastHTML = html;
+
+      outputEl.insertAdjacentHTML('beforeend', delta);
+
+      setTimeout(streamNextChunk, 800);
+    }
+
+    streamNextChunk();
+  </script>
+</body>
+</html>

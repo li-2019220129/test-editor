@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown示例</title>
+    <!-- 添加markdown-it的CDN引用 -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <!-- 添加jQuery的CDN引用 -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+      #editor {
+        width: 100%;
+        height: 150px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+      }
+      #preview {
+        border: 1px solid #ddd;
+        padding: 15px;
+        background-color: #f9f9f9;
+        min-height: 200px;
+        font-family: monospace;
+        white-space: pre-wrap;
+      }
+      #stream-output {
+        border: 1px solid #ddd;
+        padding: 15px;
+        margin-top: 20px;
+        min-height: 100px;
+        background-color: #f0f8ff;
+        font-family: monospace;
+        white-space: pre-wrap;
+      }
+      button {
+        padding: 8px 15px;
+        margin-right: 10px;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Markdown流式输出示例</h1>
+
+    <textarea id="editor" placeholder="请输入Markdown文本...">
+## 欢迎使用Markdown
+
+* 这是列表项1
+* 这是列表项2
+
+**粗体文本** 和 *斜体文本*
+
+[链接示例](https://www.example.com)
+
+这是一个特殊链接 [citation:123]
+
+```javascript
+// 代码块示例
+function hello() {
+  console.log('Hello World');
+}
+```</textarea
+    >
+
+    <div>
+      <button id="convert">转换</button>
+      <button id="start-stream">开始流式输出</button>
+      <button id="reset">重置</button>
+    </div>
+
+    <h2>流式输出</h2>
+    <div id="stream-output"></div>
+
+    <script>
+      $(document).ready(function () {
+        // 测试数据
+        const streamChunks = [
+          "你好，这是流式返回的第一部分\n\n",
+          "**这是一段加粗的文字**\n\n",
+          "这是用户信息: [citation:456]\n",
+          "这是一个文档引用: [citation:789]\n\n",
+          "* 列表项1\n* 列表项2\n\n",
+          "这是最后一部分 *斜体* [citation:101]",
+        ];
+
+        let isStreaming = false;
+        let streamInterval;
+        let fullText = "";
+        let currentPosition = 0;
+        let lastRendered = 0;
+
+        // 初始化markdown-it
+        const md = window.markdownit();
+
+        // 扩展链接替换函数
+        function replaceSpecialLinks(html) {
+          return html.replace(
+            /\[citation:(\d+)\]/g,
+            (_, id) =>
+              `<a href="/citation/${id}" class="citation" target="_blank">[引用:${id}]</a>`
+          );
+        }
+
+        // 转换按钮点击事件
+        $("#convert").click(function () {
+          const markdownText = $("#editor").val();
+          const htmlResult = md.render(markdownText);
+          $("#preview").html(replaceSpecialLinks(htmlResult));
+        });
+
+        // 渲染增量文本
+        function renderIncrement() {
+          if (currentPosition <= lastRendered) return;
+
+          const newText = fullText.slice(lastRendered, currentPosition);
+          if (!newText) return;
+
+          const rendered = md.render(newText);
+          const replaced = replaceSpecialLinks(rendered);
+
+          $("#stream-output").append(replaced);
+          lastRendered = currentPosition;
+
+          // 自动滚动到底部
+          const streamOutput = document.getElementById("stream-output");
+          streamOutput.scrollTop = streamOutput.scrollHeight;
+        }
+
+        // 开始流式输出
+        $("#start-stream").click(function () {
+          if (isStreaming) return;
+
+          isStreaming = true;
+          $("#stream-output").empty();
+          fullText = "";
+          currentPosition = 0;
+          lastRendered = 0;
+
+          // 处理每个数据块
+          let chunkIndex = 0;
+
+          function processNextChunk() {
+            if (chunkIndex >= streamChunks.length) {
+              renderIncrement(); // 确保最后部分被渲染
+              isStreaming = false;
+              return;
+            }
+
+            const chunk = streamChunks[chunkIndex++];
+
+            // 逐字输出当前块
+            let charIndex = 0;
+
+            function outputNextChar() {
+              if (charIndex >= chunk.length) {
+                setTimeout(processNextChunk, 300); // 块之间的间隔
+                return;
+              }
+
+              fullText += chunk[charIndex++];
+              currentPosition = fullText.length;
+
+              // 每积累10个字符或遇到换行符就渲染一次
+              if (
+                currentPosition - lastRendered >= 10 ||
+                chunk[charIndex - 1] === "\n"
+              ) {
+                renderIncrement();
+              }
+
+              setTimeout(outputNextChar, 50); // 字符之间的延迟
+            }
+
+            outputNextChar();
+          }
+
+          processNextChunk();
+        });
+
+        // 重置按钮
+        $("#reset").click(function () {
+          $("#stream-output").empty();
+          isStreaming = false;
+        });
+
+        // 页面加载时自动转换一次预览
+        $("#convert").click();
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown示例</title>
+  <!-- 添加markdown-it的CDN引用 -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+  <!-- 添加jQuery的CDN引用 -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    #editor {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+    }
+
+    #stream-output {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 20px;
+      min-height: 200px;
+      max-height: 400px;
+      background-color: #f0f8ff;
+      font-family: monospace;
+      white-space: pre-wrap;
+      overflow-y: auto;
+    }
+
+    #raw-text {
+      display: none;
+    }
+
+    button {
+      padding: 8px 15px;
+      margin-right: 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .token {
+      opacity: 0;
+      transition: opacity 0.01s ease;
+    }
+
+    .token.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>ChatGPT风格的逐字显示</h1>
+
+  <div>
+    <button id="start-stream">开始流式输出</button>
+    <button id="reset">重置</button>
+    <label>
+      <input type="checkbox" id="skip-animation" />
+      跳过动画
+    </label>
+  </div>
+
+  <h2>流式输出</h2>
+  <div id="stream-output"></div>
+  <div id="raw-text"></div>
+
+  <script>
+    $(document).ready(function () {
+      // 完整的测试文本
+      const fullContent = `你好，欢迎使用逐字显示功能。这个功能可以像ChatGPT一样逐字显示文本内容。
+
+**这是一段加粗的文字**，看起来效果如何？
+
+这里有一些特殊链接: [citation:456] 和另一个引用 [citation:789]
+
+下面是一个列表:
+* 第一个列表项
+* 第二个列表项
+* 第三个列表项 
+
+这是一段代码示例:
+\`\`\`javascript
+function hello() {
+  console.log('Hello World');
+  return true;
+}
+\`\`\`
+
+最后希望这个*逐字显示*效果能让您满意！`;
+
+      // 初始化markdown-it
+      const md = window.markdownit();
+
+      // 预先渲染完整的HTML，但不显示
+      const fullRendered = md.render(fullContent);
+
+      // 扩展链接替换函数
+      function replaceSpecialLinks(html) {
+        return html.replace(
+          /\[citation:(\d+)\]/g,
+          (_, id) => `<a href="/citation/${id}" class="citation" target="_blank">[引用:${id}]</a>`
+        );
+      }
+
+      // 将完整的HTML存储在隐藏元素中
+      $("#raw-text").html(replaceSpecialLinks(fullRendered));
+
+      // 逐字显示函数
+      function streamText() {
+        let currentText = "";
+        let index = 0;
+
+        // 创建一个固定的容器来保存所有链接
+        const $linkContainer = $("<div id='link-container'></div>");
+        $("#stream-output").append($linkContainer);
+
+        // 从完整渲染中提取所有链接并添加到容器
+        const $links = $("#raw-text a").clone();
+        $links.css({
+          "position": "absolute",
+          "opacity": "0",
+          "pointer-events": "auto" // 确保链接可点击
+        });
+        $linkContainer.append($links);
+
+        // 更新显示函数
+        function updateDisplay() {
+          if (index >= fullContent.length) return;
+
+          // 添加下一个字符
+          currentText += fullContent[index++];
+
+          // 渲染当前文本
+          const rendered = md.render(currentText);
+          const replaced = replaceSpecialLinks(rendered);
+
+          // 更新显示内容，但保留链接容器
+          const $content = $("<div></div>").html(replaced);
+          $("#stream-output").html("").append($linkContainer).append($content);
+
+          // 调整所有链接的位置以匹配当前显示的文本中的链接位置
+          const visibleLinks = $content.find("a");
+          visibleLinks.each(function (i) {
+            if (i < $links.length) {
+              const position = $(this).position();
+              $($links[i]).css({
+                "top": position.top + "px",
+                "left": position.left + "px",
+                "width": $(this).outerWidth() + "px",
+                "height": $(this).outerHeight() + "px",
+                "opacity": "0" // 透明但可点击
+              });
+            }
+          });
+
+          // 滚动到底部
+          const streamOutput = document.getElementById("stream-output");
+          streamOutput.scrollTop = streamOutput.scrollHeight;
+
+          // 继续处理下一个字符
+          const delay = $("#skip-animation").is(":checked") ? 10 : 100;
+          setTimeout(updateDisplay, delay);
+        }
+
+        // 开始显示
+        updateDisplay();
+      }
+
+      // 开始流式输出
+      $("#start-stream").click(function () {
+        $("#stream-output").empty();
+        streamText();
+      });
+
+      // 重置按钮
+      $("#reset").click(function () {
+        $("#stream-output").empty();
+      });
+    });
+  </script>
+</body>
+
+</html>

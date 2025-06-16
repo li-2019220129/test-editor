@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown示例</title>
+    <!-- 添加markdown-it的CDN引用 -->
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <!-- 添加jQuery的CDN引用 -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <style>
+      #editor {
+        width: 100%;
+        height: 150px;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+      }
+      #preview {
+        border: 1px solid #ddd;
+        padding: 15px;
+        background-color: #f9f9f9;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Markdown编辑器</h1>
+    <textarea id="editor" placeholder="请输入Markdown文本...">
+## 欢迎使用Markdown
+
+* 这是列表项1
+* 这是列表项2
+
+**粗体文本** 和 *斜体文本*
+
+[链接示例](https://www.example.com)
+
+```javascript
+// 代码块示例
+function hello() {
+  console.log('Hello World');
+}
+```</textarea
+    >
+    <button id="convert">转换</button>
+    <div id="preview"></div>
+
+    <script>
+      $(document).ready(function () {
+        const data = ["a", "2", "我都", "[", "c", "i", "tation", ":", "0", "]"];
+        // 初始化markdown-it
+        const md = window.markdownit();
+
+        // 转换按钮点击事件
+        $("#convert").click(function () {
+          const markdownText = $("#editor").val();
+          const htmlResult = md.render(markdownText);
+          $("#preview").html(htmlResult);
+        });
+
+        // 页面加载时自动转换一次
+        $("#convert").click();
+      });
+    </script>
+  </body>
+</html>

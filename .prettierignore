@@ -1,0 +1,15 @@
+# 忽略构建输出目录
+dist/
+build/
+node_modules/
+
+# 忽略大型第三方库和生成的文件
+*.min.js
+*.min.css
+vendor/
+generated/
+
+# 忽略其他不需要格式化的文件
+*.json
+*.md
+*.lock 

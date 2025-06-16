@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown示例</title>
+  <!-- 添加markdown-it的CDN引用 -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+  <!-- 添加jQuery的CDN引用 -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <style>
+    #editor {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+    }
+
+    #stream-output {
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 20px;
+      min-height: 200px;
+      max-height: 400px;
+      background-color: #f0f8ff;
+      font-family: monospace;
+      white-space: pre-wrap;
+      overflow-y: auto;
+    }
+
+    #raw-text {
+      display: none;
+    }
+
+    button {
+      padding: 8px 15px;
+      margin-right: 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .token {
+      opacity: 0;
+      transition: opacity 0.01s ease;
+    }
+
+    .token.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>ChatGPT风格的逐字显示</h1>
+
+  <div>
+    <button id="start-stream">开始流式输出</button>
+    <button id="reset">重置</button>
+    <label>
+      <input type="checkbox" id="skip-animation" />
+      跳过动画
+    </label>
+  </div>
+
+  <h2>流式输出</h2>
+  <div id="stream-output"></div>
+  <div id="raw-text"></div>
+
+  <script>
+    const md = window.markdownit();
+    let buffer = '';
+    let lastRenderedHTML = '';
+
+    function updateStreamOutput(newText) {
+      // 渲染完整 HTML
+      const rawHTML = md.render(newText);
+      const replaced = rawHTML.replace(
+        /\[citation:(\d+)\]/g,
+        (_, id) => `<a href="/citation/${id}" target="_blank">[引用:${id}]</a>`
+      );
+
+      // DOM diff 渲染策略：只替换最后一个子元素
+      const container = document.getElementById('stream-output');
+      const parser = new DOMParser();
+      const newDoc = parser.parseFromString(replaced, 'text/html');
+      const newNodes = newDoc.body.childNodes;
+
+      const currentCount = container.childNodes.length;
+      const newCount = newNodes.length;
+
+      for (let i = 0; i < newCount; i++) {
+        const newNode = newNodes[i];
+        if (i < currentCount) {
+          // 如果前面的段落一样，不做处理
+          continue;
+        } else {
+          // 新增段落：append
+          container.appendChild(newNode.cloneNode(true));
+        }
+      }
+
+      // 替换最后一个段落（有可能是编辑中）
+      if (newCount > 0 && currentCount > 0) {
+        const last = container.lastChild;
+        const newLast = newNodes[newCount - 1].cloneNode(true);
+        container.replaceChild(newLast, last);
+      }
+    }
+
+    // 模拟字符逐步追加
+    const content = `你好，欢迎使用逐字显示功能。这个功能可以像ChatGPT一样逐字显示文本内容。
+
+**这是一段加粗的文字**，看起来效果如何？
+
+这里有一些特殊链接: [citation:456] 和另一个引用 [citation:789]
+
+\`\`\`js
+function hello() {
+  console.log("Hello");
+}
+\`\`\`
+
+最后希望这个*逐字显示*效果能让您满意！`;
+
+    let idx = 0;
+    const interval = setInterval(() => {
+      if (idx >= content.length) {
+        clearInterval(interval);
+        return;
+      }
+      buffer += content[idx];
+      idx++;
+      updateStreamOutput(buffer);
+    }, 30);
+
+  </script>
+</body>
+
+</html>
