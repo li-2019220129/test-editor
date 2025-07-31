@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>滚动输入底纹</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 40px;
+            background: #f7f7f7;
+        }
+
+        .input-container {
+            position: relative;
+            width: 400px;
+            margin: 0 auto;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            box-sizing: border-box;
+            position: relative;
+            z-index: 2;
+            background-color: transparent;
+        }
+
+        .placeholder-roller {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            height: 24px;
+            overflow: hidden;
+            color: #bbb;
+            font-size: 18px;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .roller-list {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .roller-item {
+            height: 24px;
+            line-height: 24px;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="input-container">
+        <input type="text" id="inputBox" autocomplete="off" />
+        <div class="placeholder-roller">
+            <div id="rollerList" class="roller-list">
+                <div class="roller-item">波浪底纹</div>
+                <div class="roller-item">斜线底纹</div>
+                <div class="roller-item">彩虹底纹</div>
+                <div class="roller-item">碎片底纹</div>
+                <div class="roller-item">网格底纹</div>
+                <div class="roller-item">蜂窝底纹</div>
+                <div class="roller-item">十字底纹</div>
+                <div class="roller-item">圆圈底纹</div>
+                <div class="roller-item">方格底纹</div>
+                <div class="roller-item">波浪底纹</div> <!-- 克隆第一项用于无缝轮播 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const input = document.getElementById("inputBox");
+        const rollerList = document.getElementById("rollerList");
+        const itemHeight = 24;
+        const itemCount = rollerList.children.length - 1; // 最后一项是克隆项
+        let index = 0;
+        let timer = null;
+        let animating = false;
+
+        function scrollNext() {
+            if (animating) return;
+
+            animating = true;
+
+            const animation = rollerList.animate([
+                { transform: `translateY(${-index * itemHeight}px)` },
+                { transform: `translateY(${-(index + 1) * itemHeight}px)` }
+            ], {
+                duration: 400,
+                easing: 'ease-out',
+                fill: 'forwards'
+            });
+
+            animation.onfinish = () => {
+                index++;
+                if (index === itemCount) {
+                    rollerList.style.transform = `translateY(0)`;
+                    index = 0;
+                } else {
+                    rollerList.style.transform = `translateY(${-(index) * itemHeight}px)`;
+                }
+                animating = false;
+            };
+        }
+
+        function startRolling() {
+            stopRolling();
+            timer = setInterval(scrollNext, 2000);
+        }
+
+        function stopRolling() {
+            if (timer) clearInterval(timer);
+        }
+
+        // 根据输入状态控制滚动
+        input.addEventListener("input", () => {
+            if (input.value.trim()) {
+                stopRolling();
+                rollerList.parentElement.style.display = "none";
+            } else {
+                rollerList.parentElement.style.display = "block";
+            }
+        });
+
+        input.addEventListener("focus", () => {
+            stopRolling();
+        });
+
+        input.addEventListener("blur", () => {
+            if (!input.value.trim()) startRolling();
+        });
+
+        // 初始化滚动
+        startRolling();
+    </script>
+
+</body>
+
+</html>
