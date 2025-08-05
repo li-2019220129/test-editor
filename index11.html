@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>还原度高分页器</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #data-container {
+            min-height: 200px;
+            width: 600px;
+            text-align: left;
+            margin-bottom: 40px;
+            font-size: 16px;
+            transition: opacity 0.3s ease;
+        }
+
+        .loading {
+            opacity: 0.3;
+        }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 20px;
+        }
+
+        .pagination .page-btn,
+        .pagination .page-ellipsis {
+            padding: 8px 14px;
+            min-width: 48px;
+            text-align: center;
+            border: 1px solid #ccc;
+            background-color: #fff;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .pagination .page-ellipsis {
+            border: none;
+            cursor: default;
+            padding: 8px 6px;
+        }
+
+        .pagination .active {
+            color: red;
+            font-weight: bold;
+            border: none;
+            pointer-events: none;
+        }
+
+        .pagination .disabled {
+            color: #aaa;
+            border: 1px solid #eee;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="data-container"></div>
+    <div id="pagination" class="pagination"></div>
+
+    <script type="module">
+        class Paginator {
+            constructor({ container, totalPages, currentPage = 1, onPageChange = () => { }, range = 2 }) {
+                this.container = container;
+                this.totalPages = totalPages;
+                this.currentPage = currentPage;
+                this.range = range;
+                this.onPageChange = onPageChange;
+                this.render();
+            }
+
+            render() {
+                this.container.innerHTML = "";
+                const fragment = document.createDocumentFragment();
+
+                const createBtn = (label, page, options = {}) => {
+                    const btn = document.createElement("div");
+                    btn.textContent = label;
+                    btn.className = "page-btn";
+                    if (options.active) btn.classList.add("active");
+                    if (options.disabled) {
+                        btn.classList.add("disabled");
+                        return btn;
+                    }
+                    btn.addEventListener("click", () => {
+                        if (page !== this.currentPage) {
+                            this.onPageChange(page);
+                        }
+                    });
+                    return btn;
+                };
+
+                const addEllipsis = () => {
+                    const span = document.createElement("div");
+                    span.textContent = "...";
+                    span.className = "page-ellipsis";
+                    fragment.appendChild(span);
+                };
+
+                fragment.appendChild(createBtn("‹", this.currentPage - 1, {
+                    disabled: this.currentPage === 1
+                }));
+
+                fragment.appendChild(createBtn("1", 1, {
+                    active: this.currentPage === 1
+                }));
+
+                const start = Math.max(2, this.currentPage - this.range);
+                const end = Math.min(this.totalPages - 1, this.currentPage + this.range);
+
+                if (start > 2) addEllipsis();
+
+                for (let i = start; i <= end; i++) {
+                    fragment.appendChild(createBtn(i, i, {
+                        active: this.currentPage === i
+                    }));
+                }
+
+                if (end < this.totalPages - 1) addEllipsis();
+
+                if (this.totalPages > 1) {
+                    fragment.appendChild(createBtn(this.totalPages, this.totalPages, {
+                        active: this.currentPage === this.totalPages
+                    }));
+                }
+
+                fragment.appendChild(createBtn("›", this.currentPage + 1, {
+                    disabled: this.currentPage === this.totalPages
+                }));
+
+                this.container.appendChild(fragment);
+            }
+
+            update(currentPage) {
+                this.currentPage = currentPage;
+                this.render();
+            }
+        }
+
+        function mockFetchData(page, pageSize = 10) {
+            return new Promise((resolve) => {
+                setTimeout(() => {
+                    const items = Array.from({ length: pageSize }, (_, i) => `第 ${page} 页 - 数据项 ${i + 1}`);
+                    resolve({ items, totalPages: 6682 });
+                }, 300);
+            });
+        }
+
+        const dataContainer = document.getElementById("data-container");
+        const paginationContainer = document.getElementById("pagination");
+        let paginator;
+
+        async function loadPage(page) {
+            dataContainer.classList.add("loading");
+            const { items, totalPages } = await mockFetchData(page);
+            dataContainer.innerHTML = items.map(item => `<div>${item}</div>`).join("");
+            dataContainer.classList.remove("loading");
+
+            if (!paginator) {
+                paginator = new Paginator({
+                    container: paginationContainer,
+                    totalPages,
+                    currentPage: page,
+                    onPageChange: loadPage,
+                    range: 2
+                });
+            } else {
+                paginator.update(page);
+            }
+        }
+
+        loadPage(1); // 初始页
+    </script>
+</body>
+
+</html>
