@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>官网详情页高亮 - 原生JS</title>
+  <script src="https://cdn.bootcdn.net/ajax/libs/xtemplate/4.10.0/xtemplate.min.js"></script>
+  <style>
+    .highlight {
+      background: yellow;
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <input type="text" id="search" placeholder="输入关键词" />
+  <button id="doSearch">搜索</button>
+  <div id="detail-container"></div>
+
+  <!-- 模板 -->
+  <script type="text/html" id="detail-tpl">
+    <div class="detail-list">
+      {{#each data}}
+        <div class="detail-item">
+          <h2>{{{title}}}</h2>
+          <p>{{{desc}}}</p>
+        </div>
+      {{/each}}
+    </div>
+  </script>
+
+  <script>
+    // 模拟后端数据
+    const apiData = [
+      { title: "产品A", desc: "这是产品A的介绍，关键词测试" },
+      { title: "产品B", desc: "这是产品B的介绍，带关键词演示" },
+      { title: "产品C", desc: "这是产品C的介绍" }
+    ];
+
+    // 通用高亮函数
+    function highlightText(text, keyword) {
+      if (!keyword) return text;
+      const reg = new RegExp(keyword, "gi");
+      return text.replace(reg, match => `<span class="highlight">${match}</span>`);
+    }
+
+    // 渲染函数
+    function render(data) {
+      const tpl = document.getElementById("detail-tpl").innerHTML;
+      const xtpl = new XTemplate(tpl);
+      const html = xtpl.render({ data });
+      document.getElementById("detail-container").innerHTML = html;
+    }
+
+    // 初始渲染
+    render(apiData);
+
+    // 搜索按钮点击
+    document.getElementById("doSearch").addEventListener("click", () => {
+      const keyword = document.getElementById("search").value.trim();
+      if (!keyword) {
+        render(apiData);
+        return;
+      }
+
+      // 深拷贝数据，避免污染原始
+      const newData = JSON.parse(JSON.stringify(apiData));
+      newData.forEach(item => {
+        item.title = highlightText(item.title, keyword);
+        item.desc = highlightText(item.desc, keyword);
+      });
+
+      render(newData);
+    });
+  </script>
+</body>
+</html>
