@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            width: 100vw;
+            height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .agent-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+        }
+
+        .agent-left {
+            flex: 1;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            border: 1px solid #cccccc;
+        }
+
+        .agent-right {
+            width: 400px;
+            height: 100%;
+        }
+
+        /* 默认 1920px 设计尺寸 */
+        .ai-agent {
+            width: 380px;
+            height: 100%;
+            background: linear-gradient(45deg, #ffccd5 0%, #d8b4fe 100%);
+        }
+
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+            margin-top: 70px;
+            padding: 0 20px;
+        }
+
+        .ai-header img {
+            width: 60px;
+            height: 60px;
+            object-fit: contain;
+            border-radius: 50%;
+        }
+
+        .tips {
+            width: 70%;
+            font-size: 24px;
+            color: #191919;
+        }
+
+        .text-title {
+            font-size: 20px;
+            width: 100%;
+            display: flex;
+            color: #191919;
+            align-items: center;
+            justify-content: center;
+            margin: 12px;
+        }
+
+        /* === 分辨率小于1920时等比缩放 === */
+        @media screen and (max-width: 1920px),
+        screen and (max-height: 1080px) {
+            .ai-agent {
+                width: calc(380 * (100vw / 1920));
+                height: 100%;
+            }
+
+            .ai-header {
+                gap: calc(12 * (100vw / 1920));
+                margin-top: calc(70 * (100vh / 1080));
+                padding: 0 calc(20 * (100vw / 1920));
+            }
+
+            .ai-header img {
+                width: calc(60 * (100vw / 1920));
+                height: calc(60 * (100vw / 1920));
+                /* 宽高相同 */
+                object-fit: cover;
+            }
+
+            .tips {
+                font-size: calc(24 * (100vw / 1920));
+            }
+
+            .text-title {
+                font-size: calc(20 * (100vw / 1920));
+                margin: calc(12 * (100vh / 1080));
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="agent-content">
+        <div class="agent-left">
+            <div class="ai-agent">
+                <div class="ai-header">
+                    <img src="./1.jpg" alt="">
+                    <div class="tips">我的我的我的哦我的</div>
+                </div>
+                <div class="text-title">
+                    欢迎使用智能脚本助手
+                </div>
+            </div>
+        </div>
+        <div class="agent-right"></div>
+    </div>
+</body>
+
+</html>
