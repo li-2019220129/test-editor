@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>max-height 监听（稳定版）</title>
+    <style>
+        body {
+            padding: 20px;
+            font-family: sans-serif;
+        }
+
+        #target-wrapper {
+            width: 300px;
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+
+        #target {
+            background: linear-gradient(135deg, #4caf50, #2e7d32);
+            color: #fff;
+            overflow: hidden;
+            transition: max-height 300ms ease;
+            /* 初始没有写 inline style，这里用 css 规则 */
+            max-height: 100%;
+        }
+
+        button {
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .hint {
+            margin-top: 12px;
+            color: #666;
+            font-size: 13px
+        }
+    </style>
+</head>
+
+<body>
+    <div>
+        <button id="set100">设置 max-height: 100%</button>
+        <button id="set325">设置 max-height: 325px</button>
+        <button id="set0">设置 max-height: 0px</button>
+    </div>
+
+    <div id="target-wrapper" style="height:400px;">
+        <!-- wrapper 给出容器高度以方便百分比解析 -->
+        <div id="target">
+            <div style="padding:10px">
+                <p>这是测试区域，内容较多，用来展示 max-height 的效果。</p>
+                <p>行 1</p>
+                <p>行 2</p>
+                <p>行 3</p>
+                <p>行 4</p>
+                <p>行 5</p>
+                <p>行 6</p>
+                <p>行 7</p>
+                <p>行 8</p>
+                <p>行 9</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="hint">控制台会显示：MutationObserver 的触发、下一帧读取到的 inline style、getComputedStyle(max-height)、以及 ResizeObserver
+        的高度。</div>
+
+    <script>
+
+        const lock = () => {
+            scrollTop = window.scrollY
+            document.body.style.position = 'fixed'
+            document.body.style.top = `-${scrollTop}px`
+            document.body.style.width = '100%'
+        }
+
+        const unlock = () => {
+            document.body.style.position = ''
+            document.body.style.top = ''
+            window.scrollTo(0, scrollTop)
+        }
+
+        const el = document.getElementById('target')
+        const btn100 = document.getElementById('set100')
+        const btn325 = document.getElementById('set325')
+        const btn0 = document.getElementById('set0')
+
+        // 辅助：安全赋值（避免重复赋相同值）
+        function setMaxHeight(value) {
+            if (el.style.maxHeight !== value) {
+                console.log('[setMaxHeight] set ->', value, ' (inline before:', el.style.maxHeight || '(none)')
+                el.style.maxHeight = value
+            } else {
+                console.log('[setMaxHeight] skipped (same)', value)
+            }
+        }
+
+        // 1) MutationObserver：监听 style 属性变化（触发时机很快）
+        const mo = new MutationObserver(muts => {
+            for (const m of muts) {
+                if (m.type === 'attributes' && m.attributeName === 'style') {
+                    console.log('[MO] style attribute changed (inline now):', el.getAttribute('style'))
+                    // 不要在这里直接读 computedStyle（可能还是旧值）——在下一帧再读
+                    requestAnimationFrame(() => {
+                        // 这里在下一帧读取，通常能拿到解析后的值
+                        console.log('  ↳ [rAF] inline style:', el.style.maxHeight || '(none)')
+                        console.log('  ↳ [rAF] getComputedStyle max-height:', getComputedStyle(el).maxHeight)
+                        console.log('  ↳ [rAF] offsetHeight:', el.offsetHeight, 'clientHeight:', el.clientHeight)
+                    })
+                }
+            }
+        })
+        mo.observe(el, { attributes: true, attributeFilter: ['style'] })
+
+        // // 2) ResizeObserver：监听元素尺寸变化（能捕捉过渡过程的中间高度）
+        // const ro = new ResizeObserver(entries => {
+        //     for (const entry of entries) {
+        //         const h = entry.contentRect.height
+        //         console.log('[RO] contentRect.height:', Math.round(h), 'px')
+        //     }
+        // })
+        // ro.observe(el)
+
+        // 按钮绑定
+        btn100.addEventListener('click', () => setMaxHeight('100%'))
+        btn325.addEventListener('click', () => setMaxHeight('325px'))
+        btn0.addEventListener('click', () => setMaxHeight('0px'))
+
+        // 额外：演示在 resize 事件中调整 max-height 的情况（模拟你的场景）
+        window.addEventListener('resize', () => {
+            if (window.innerWidth > 1230) {
+                setMaxHeight('325px')
+            } else {
+                setMaxHeight('100%')
+            }
+        })
+    </script>
+</body>
+
+</html>
