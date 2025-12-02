@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>流式输出带图片分组</title>
+    <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+    <link rel="stylesheet"
+        href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@latest/build/styles/github.min.css">
+    <style>
+        #stream-output {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-top: 20px;
+            min-height: 200px;
+            max-height: 1400px;
+            background: #f0f8ff;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-y: auto;
+        }
+
+        .img-group {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            overflow: hidden;
+            position: relative;
+            gap: 5px;
+        }
+
+        .img-track {
+            display: flex;
+            gap: 5px;
+            transition: transform 0.3s;
+        }
+
+        .img-track img {
+            max-width: 150px;
+            max-height: 120px;
+            border-radius: 6px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .img-group button.slide-left,
+        .img-group button.slide-right {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 25px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 10;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .img-group button.slide-left {
+            left: 0;
+        }
+
+        .img-group button.slide-right {
+            right: 0;
+        }
+
+        .img-group button.slide-left:hover,
+        .img-group button.slide-right:hover {
+            background: rgba(0, 0, 0, 0.6);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>流式输出示例</h1>
+    <div id="stream-output"></div>
+
+    <script>
+        const imgList = [
+            'https://i.postimg.cc/KYXD32mV/wei-xin-tu-pian-20230607094259.jpg',
+            'https://i.postimg.cc/KYXD32mV/wei-xin-tu-pian-20230607094259.jpg'
+        ];
+        const fullContent = `
+文字开始
+
+[picture&1] [picture&2] [picture&1] [picture&2] [picture&1] [picture&2]
+
+文字结束
+`;
+
+        const container = document.getElementById('stream-output');
+        const md = window.markdownit({ html: true });
+
+        function replacePictureLinks(html) {
+            return html.replace(/\[picture&(\d+)\]/g, (_, id) => `<img class="chat-img" src="${imgList[id - 1]}">`);
+        }
+
+        function waitImageLoad(img) {
+            return new Promise(resolve => {
+                if (img.complete) resolve();
+                else img.onload = img.onerror = () => resolve();
+            });
+        }
+
+        async function processImageGroups(container) {
+            const imgs = [...container.querySelectorAll("img.chat-img")];
+            let i = 0;
+
+            while (i < imgs.length) {
+                const firstImg = imgs[i];
+                if (firstImg.dataset.processed) { i++; continue; }
+
+                // 分组连续图片
+                let group = [firstImg];
+                firstImg.dataset.processed = "true";
+                i++;
+                while (i < imgs.length && imgs[i].previousElementSibling === imgs[i - 1]) {
+                    if (!imgs[i].dataset.processed) {
+                        group.push(imgs[i]);
+                        imgs[i].dataset.processed = "true";
+                    }
+                    i++;
+                }
+
+                if (group.length > 1) {
+                    // 构建虚拟 wrapper
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "img-group";
+                    const track = document.createElement("div");
+                    track.className = "img-track";
+
+                    group.forEach(img => {
+                        const clone = img.cloneNode(true);
+                        track.appendChild(clone);
+                    });
+                    wrapper.appendChild(track);
+
+                    if (group.length > 5) {
+                        const left = document.createElement("button");
+                        left.className = "slide-left"; left.innerText = "<";
+                        const right = document.createElement("button");
+                        right.className = "slide-right"; right.innerText = ">";
+                        wrapper.insertBefore(left, track); wrapper.appendChild(right);
+
+                        let offset = 0;
+                        left.onclick = () => { offset = Math.min(offset + 1, 0); track.style.transform = `translateX(${offset * 120}px)`; };
+                        right.onclick = () => { offset = Math.max(offset - 1, -(group.length - 5)); track.style.transform = `translateX(${offset * 120}px)`; };
+                    }
+
+                    // 使用 morphdom 替换原有连续图片
+                    const parent = firstImg.parentNode;
+                    const virtualDiv = document.createElement("div");
+                    group.forEach(img => virtualDiv.appendChild(img.cloneNode(true))); // 虚拟节点
+                    morphdom(parent, wrapper, {
+                        childrenOnly: false,
+                        onBeforeElUpdated: (fromEl, toEl) => {
+                            // 保留 group 内的图片，防止重复闪烁
+                            if (fromEl.classList && fromEl.classList.contains("img-group")) return false;
+                            return true;
+                        }
+                    });
+
+                    await Promise.all([...track.querySelectorAll("img")].map(waitImageLoad));
+                }
+            }
+        }
+
+
+
+
+        (async function streamOutput() {
+            let strData = '';
+            for (let i = 0; i < fullContent.length; i++) {
+                strData += fullContent[i];
+                const replaced = md.render(replacePictureLinks(strData));
+                morphdom(container, `<div id="stream-output">${replaced}</div>`);
+                await processImageGroups(container);
+                container.scrollTop = container.scrollHeight;
+                await new Promise(r => setTimeout(r, 50));
+            }
+        })();
+    </script>
+</body>
+
+</html>
