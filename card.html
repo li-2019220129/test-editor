@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    html,
+    body {
+        margin: 0px;
+        padding: 0px;
+    }
+
+    .card {
+        width: 500px;
+        margin: 20px auto;
+        background-color: white;
+        border: 1px solid #c5c5c5;
+        border-radius: 10px;
+        padding: 10px;
+        overflow: hidden;
+        box-sizing: border-box;
+        position: relative;
+        transition: height 0.3s ease;
+    }
+
+    .toggle-btn {
+        position: absolute;
+        bottom: 5px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        color: white;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        cursor: pointer;
+        display: none;
+    }
+</style>
+
+<body>
+    <div class="card" id="card">
+        <div id="content"></div>
+        <div class="toggle-btn" id="toggleBtn">展开</div>
+    </div>
+
+    <script>
+        const text = `我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微
+        软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务v
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+         软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+      解微软鹅肉警卫任务
+        我的
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        我的娃饿哦日欧文溶解微软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务 软鹅肉警卫任务我的娃饿哦日欧文溶解微软鹅肉警卫任务
+        `;
+
+        let srt = '';
+        const card = document.getElementById('card');
+        const content = document.getElementById('content');
+        const toggleBtn = document.getElementById('toggleBtn');
+
+        const MAX_HEIGHT = 300;
+        let isExpanded = false;
+        let hasShowButton = false;
+
+        /** 检查是否需要显示展开按钮 */
+        function checkNeedToggleBtn() {
+            if (!hasShowButton && content.scrollHeight > MAX_HEIGHT) {
+                hasShowButton = true;
+                toggleBtn.style.display = 'block';
+
+                if (!isExpanded) {
+                    card.style.height = MAX_HEIGHT + 'px';
+                }
+            }
+        }
+
+        /** 展开动画 */
+        function expandCard() {
+            const startHeight = card.offsetHeight;      // 当前高度(px)
+            card.style.height = startHeight + 'px';     // 锁定高度
+            card.offsetHeight;                          // 强制 reflow
+
+            card.style.height = content.scrollHeight + 'px'; // 过渡到真实高度
+
+            // 在动画结束后设成 auto，保持内容持续增加也能撑开
+            card.addEventListener('transitionend', function handler() {
+                card.style.height = 'auto';
+                card.removeEventListener('transitionend', handler);
+            });
+        }
+
+        /** 收起动画 */
+        function collapseCard() {
+            const startHeight = card.scrollHeight;      // auto 状态下内容真实高度
+            card.style.height = startHeight + 'px';     // 先设为固定高度
+            card.offsetHeight;                          // reflow
+
+            card.style.height = MAX_HEIGHT + 'px';      // 再过渡到折叠高度
+        }
+
+        /** 点击按钮切换 */
+        toggleBtn.onclick = () => {
+            isExpanded = !isExpanded;
+
+            if (isExpanded) {
+                expandCard();
+                toggleBtn.textContent = '收起';
+            } else {
+                collapseCard();
+                toggleBtn.textContent = '展开';
+            }
+        };
+
+        /** 逐字输出内容 */
+        for (let i = 0; i < text.length; i++) {
+            setTimeout(() => {
+                srt += text[i];
+                if (i % 20 === 0) srt += '<br>';
+
+                content.innerHTML = srt;
+                checkNeedToggleBtn(); // 每次加字检查是否要显示按钮
+            }, 40 * i);
+        }
+    </script>
+
+</body>
+
+</html>
