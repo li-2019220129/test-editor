@@ -69,10 +69,11 @@
     }
 
     .chat-img {
-      max-width: 512px;
+      max-width: 100%;
       width: 512px;
-      height: 313px;
+      /* height: 313px; */
       display: block;
+      object-fit: cover;
     }
 
     .chat-video-wrapper {
@@ -167,7 +168,8 @@
 
     const imgList = [
       'https://i.postimg.cc/KYXD32mV/wei-xin-tu-pian-20230607094259.jpg',
-      'https://www.google.com/complete/search?q&cp=0&client=gws-wiz-serp&xssi=t&gs_pcrt=2&hl=zh-CN&authuser=0&pq=js%20%E5%8E%9F%E7%94%9F%E9%98%B2%E6%AD%A2%20xss%E6%94%BB%E5%87%BB%20%E6%96%B9%E6%B3%95&psi=ISA4aZrTK6KD1e8P34PICA.1765285925921&dpr=1.5'
+      'https://i.postimg.cc/j5cb1Wcs/hintersee-3601004-1280.jpg',
+      "https://i.postimg.cc/QMqw82T2/wei-xin-tu-pian-20230607093008.jpg",
     ]
     const videoList = [
       'https://www.w3schools.com/html/mov_bbb.mp4'
@@ -243,6 +245,19 @@
 
 [picture&1] [picture&1] [picture&1] [picture&2]
 熬阿胶如何
+[picture&1] [picture&1] [picture&1] [picture&2]
+熬阿胶如何
+
+[picture&3] [picture&3] [picture&3] [picture&2]
+熬阿胶如何
+熬阿胶如何
+熬阿胶如何
+
+[picture&3] [picture&3] [picture&3] [picture&2]
+
+熬阿胶如何
+[picture&3] [picture&3] [picture&3] [picture&2]
+
 [video&1]
 `
         ;
@@ -299,6 +314,19 @@
           }
         });
 
+
+      }
+      viewer = new Viewer(container, {
+        navbar: false,
+        toolbar: false,
+        movable: true,
+        zoomable: true,
+        title: false,
+        hidden() {
+          document.activeElement?.blur?.();
+        }
+      });
+      const imgClickHandler = () => {
         // 2) 点击预览（事件委托）
         if (!container.dataset._viewerBound) {
           container.dataset._viewerBound = "1";
@@ -306,26 +334,10 @@
           container.addEventListener("click", e => {
             const img = e.target.closest("img.chat-img");
             if (!img) return;
-
+            console.log("clicked img");
             img.blur();
-
             // 初始化 Viewer（只一次）
-            if (!viewer) {
-              viewer = new Viewer(container, {
-                filter: (el) => el.classList.contains("chat-img"),
-                navbar: false,
-                toolbar: true,
-                movable: true,
-                zoomable: true,
-                title: false,
-                hidden() {
-                  document.activeElement?.blur?.();
-                }
-              });
-            }
-
             const imgs = [...container.querySelectorAll("img.chat-img")];
-
             // ⭐ 关键：每次点击时刷新列表（解决最后几张加载后无法预览的问题）
             viewer.update();
 
@@ -333,11 +345,9 @@
             viewer.view(imgs.indexOf(img));
           });
         }
-      }
+      };
 
-
-
-
+      imgClickHandler()
 
       let videoBound = false;
 
