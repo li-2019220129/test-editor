@@ -8,8 +8,18 @@
   <!-- 添加markdown-it的CDN引用 -->
   <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.5/viewer.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.5/viewer.min.js"></script>
+
   <!-- 添加jQuery的CDN引用 -->
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- highlight.js 样式 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@latest/build/styles/github.min.css">
+
+  <!-- 浏览器可用 highlight.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+  <!-- markdown-it-highlightjs 插件浏览器版本 -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it-highlightjs@4.2.0/dist/index.js"></script>
   <style>
     #editor {
       width: 100%;
@@ -19,16 +29,49 @@
       border: 1px solid #ccc;
     }
 
-    #stream-output {
+    .stream-output {
+      position: relative;
       border: 1px solid #ddd;
       padding: 15px;
       margin-top: 20px;
       min-height: 200px;
-      max-height: 400px;
+      max-height: 200px;
       background-color: #f0f8ff;
       font-family: monospace;
-      white-space: pre-wrap;
-      overflow-y: auto;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      interpolate-size: allow-keywords;
+    }
+
+    .stream-output-max {
+      max-height: fit-content;
+    }
+
+    .expand {
+      display: none;
+      position: absolute;
+      bottom: 0px;
+      right: 0px;
+      width: 100%;
+      background: #fff;
+      opacity: 0.5;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .close {
+      display: none;
+      position: absolute;
+      bottom: 0px;
+      width: 100%;
+      background: #fff;
+      opacity: 0.5;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
 
     #raw-text {
@@ -57,10 +100,92 @@
     .token.visible {
       opacity: 1;
     }
+
+    .chat-img {
+      /* max-width: 100%;
+      width: 512px;
+      display: block;
+      object-fit: cover; */
+      max-width: 100%;
+      min-width: 220px;
+      max-height: 200px;
+      display: block;
+      object-fit: cover;
+    }
+
+    .chat-video-wrapper {
+      position: relative;
+      width: 512px;
+      max-width: 100%;
+      margin: 10px 0;
+    }
+
+    .chat-video {
+      width: 100%;
+      border-radius: 6px;
+      background: black;
+    }
+
+    /* 中间大播放按钮 */
+    .video-play-btn {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 64px;
+      height: 64px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-play-btn::before {
+      content: "";
+      display: block;
+      width: 0;
+      height: 0;
+      border-left: 20px solid white;
+      border-top: 12px solid transparent;
+      border-bottom: 12px solid transparent;
+      margin-left: 6px;
+    }
+
+    /* .video-play-btn.hidden {
+      display: none;
+    }
+
+    .chat-video-wrapper video::-webkit-media-controls {
+      opacity: 0 !important;
+    }
+
+    .chat-video-wrapper.controls-visible video::-webkit-media-controls {
+      opacity: 1 !important;
+    }
+
+    .chat-video-wrapper.controls-visible:not(:hover) video::-webkit-media-controls {
+      opacity: 0 !important;
+    } */
   </style>
+
 </head>
 
 <body>
+  <div id="ep-popover" class="el-popover el-popper" style="
+  position: absolute;
+  display: none;
+  background-color: white;
+  border: 1px solid #ebeef5;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+  padding: 10px;
+  font-size: 12px;
+  color: #303133;
+  border-radius: 4px;
+  z-index: 2000;
+  max-width: 300px;
+"></div>
   <h1>ChatGPT风格的逐字显示</h1>
 
   <div>
@@ -73,15 +198,92 @@
   </div>
 
   <h2>流式输出</h2>
-  <div id="stream-output"></div>
+  <div class="stream-output">
+    <div id="result"></div>
+    <div class="expand">展开</div>
+    <div class="close">收起</div>
+  </div>
   <div id="raw-text"></div>
 
   <script>
+    let isExpand = false;
+    let timer = null
+    const imgList = [
+      'https://i.postimg.cc/KYXD32mV/wei-xin-tu-pian-20230607094259.jpg',
+      'https://i.postimg.cc/j5cb1Wcs/hintersee-3601004-1280.jpg',
+      "https://i.postimg.cc/QMqw82T2/wei-xin-tu-pian-20230607093008.jpg",
+    ]
+    const videoList = [
+      'https://www.w3schools.com/html/mov_bbb.mp4'
+    ]
+    const citationTooltips = {
+      456: {
+        en: "This is a citation tooltip in English.",
+        zh: "这是中文引用说明123",
+        ja: "これは日本語の引用説明です。",
+        ko: "이것은 한글 용언입니다.",
+        fr: "Ceci est une explication de citation en français.",
+        de: "Dies ist eine Zitierhinweis in Deutsch.",
+        es: "Esto es una cita en español.",
+      },
+      789: {
+        en: "This is another citation tooltip in English.",
+        zh: "这是中文引用说明wewerwerwerwer456这是中文引用说明wewerwerwerwer456",
+        ja: "これは日本語の引用説明です。",
+        ko: "이것은 한글 용언입니다.",
+        fr: "Ceci est une explication de citation en français.",
+        de: "Dies ist eine Zitierhinweis in Deutsch.",
+        es: "Esto es una cita en español.",
+      }
+    }
+    const currentLang = 'zh'
     $(document).ready(function () {
-      const container = document.getElementById('stream-output');
+      const popover = document.getElementById("ep-popover");
+      const container = document.getElementById('result');
+      const expand = document.querySelector('.expand');
+      const close = document.querySelector('.close');
+      expand.addEventListener('click', () => {
+        isExpand = true;
+        container.parentElement.classList.add('stream-output-max');
+        expand.style.display = 'none';
+        clearInterval(timer)
+        timer = null
+        setTimeout(() => {
+          close.style.display = 'flex';
+        }, 300);
+      });
+      close.addEventListener('click', () => {
+        isExpand = false;
+        container.parentElement.classList.remove('stream-output-max');
+        close.style.display = 'none';
+        setTimeout(() => {
+          expand.style.display = 'flex';
+        }, 300);
+      });
       let userScrolled = false;
       let autoScroll = true;
+      let activeLink = null;
+      let hideTimer = null;
+      function updatePopoverPosition() {
+        if (!activeLink || popover.style.display === "none") return;
 
+        const rect = activeLink.getBoundingClientRect();
+        const popoverWidth = popover.offsetWidth;
+        const popoverHeight = popover.offsetHeight;
+
+        let left = window.scrollX + rect.left + rect.width / 2 - popoverWidth / 2;
+        left = Math.max(left, window.scrollX + 8);
+        left = Math.min(left, window.scrollX + window.innerWidth - popoverWidth - 8);
+
+        let top = window.scrollY + rect.bottom + 8;
+
+        if (top + popoverHeight > window.scrollY + window.innerHeight) {
+          top = window.scrollY + rect.top - popoverHeight - 8;
+        }
+
+        popover.style.left = `${left}px`;
+        popover.style.top = `${top}px`;
+      }
       // 监听滚动事件
       container.addEventListener('scroll', function () {
         // 检查是否是用户主动滚动
@@ -94,75 +296,410 @@
           // 用户滚动到底部，恢复自动滚动
           autoScroll = true;
         }
+        updatePopoverPosition()
       });
 
       // 完整的测试文本
-      const fullContent = `你好，欢迎使用逐字显示功能。这个功能可以像ChatGPT一样逐字显示文本内容。
-
+      const fullContent = `
 **这是一段加粗的文字**，看起来效果如何？
 
 这里有一些特殊链接: [citation:456] 和另一个引用 [citation:789]
 
-下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 
+[picture&1] [picture&1] [picture&1] [picture&2]
+熬阿胶如何
+[picture&1] [picture&1] [picture&1] [picture&2]
+熬阿胶如何
 
-这是一段代码示例:
-\`\`\`javascript
-function hello() {
-  console.log('Hello World');
-  return true;
-}
-\`\`\`
+[picture&3] [picture&3] [picture&3] [picture&2]
+熬阿胶如何
+熬阿胶如何
+熬阿胶如何
 
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 下面是一个列表:
-* 第一个列表项
-* 第二个列表项
-* 第三个列表项 这是一段代码示例:'
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-最后希望这个*逐字显示*效果能让您满意！下面是一个列表:
-\`\`\`javascript
-function hello() {
-  console.log('Hello World');
-  return true;
-}
-\`\`\``;
+[picture&3] [picture&3] [picture&3] [picture&2]
+
+熬阿胶如何
+[picture&3] [picture&3] [picture&3] [picture&2]
+
+`
+        ;
 
       // 初始化markdown-it
-      const md = window.markdownit();
+      // 初始化markdown-it
+      const md = window.markdownit({
+        html: true,
+        highlight: function (str, lang) {
+          let codeHtml = "";
+          if (lang && hljs.getLanguage(lang)) {
+            try {
+              codeHtml =
+                hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+            } catch (__) { }
+          } else {
+            codeHtml = md.utils.escapeHtml(str);
+          }
+
+          // 增加一个工具栏，包含语言和复制按钮
+          const languageLabel = lang || "text";
+
+          return `
+<div class="code-block-wrapper">
+  <div class="code-toolbar">
+    <span class="code-lang">${languageLabel}</span>
+    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+  </div>
+  <pre class="hljs"><code>${codeHtml}</code></pre>
+</div>`;
+        },
+      });
+
+
+      let viewer = null;
+
+      function bindImageValidityChecks(container) {
+
+        // 1) 校验图片有效性
+        container.querySelectorAll("img.chat-img").forEach(img => {
+          if (img.dataset._checked) return;
+          img.dataset._checked = "1";
+
+          const removeIfBad = () => {
+            if (img.naturalWidth === 0) img.remove();
+          };
+
+          if (img.decode) {
+            img.decode().then(removeIfBad).catch(() => img.remove());
+          } else {
+            img.addEventListener("load", removeIfBad, { once: true });
+            img.addEventListener("error", () => img.remove(), { once: true });
+            setTimeout(removeIfBad, 2000);
+          }
+        });
+
+
+      }
+      viewer = new Viewer(container, {
+        navbar: false,
+        toolbar: false,
+        movable: true,
+        zoomable: true,
+        title: false,
+        hidden() {
+          document.activeElement?.blur?.();
+        }
+      });
+      const imgClickHandler = () => {
+        // 2) 点击预览（事件委托）
+        if (!container.dataset._viewerBound) {
+          container.dataset._viewerBound = "1";
+
+          container.addEventListener("click", e => {
+            const img = e.target.closest("img.chat-img");
+            if (!img) return;
+            console.log("clicked img");
+            img.blur();
+            // 初始化 Viewer（只一次）
+            const imgs = [...container.querySelectorAll("img.chat-img")];
+            // ⭐ 关键：每次点击时刷新列表（解决最后几张加载后无法预览的问题）
+            viewer.update();
+
+            // 展示对应图片
+            viewer.view(imgs.indexOf(img));
+          });
+        }
+      };
+
+      imgClickHandler()
+
+      let videoBound = false;
+
+      function bindVideoPlayers(container) {
+        container.addEventListener("click", async (e) => {
+          const btn = e.target.closest(".video-play-btn");
+          if (!btn) return;
+
+          const wrapper = btn.closest(".chat-video-wrapper");
+          const video = wrapper.querySelector(".chat-video");
+
+          // 隐藏中间按钮
+          btn.style.display = "none";
+
+          // ⭐ 全屏时才启用 controls
+          video.setAttribute("controls", "true");
+
+          // 进入全屏
+          try {
+            if (video.requestFullscreen) {
+              await video.requestFullscreen();
+            } else if (video.webkitEnterFullscreen) {
+              video.webkitEnterFullscreen(); // iOS
+            }
+          } catch (err) {
+            console.warn("Fullscreen failed:", err);
+          }
+
+          // 播放
+          video.play();
+        });
+
+        // ⭐ 退出全屏：停止 + 重置 + 隐藏 controls + 显示按钮
+        document.addEventListener("fullscreenchange", () => {
+          const isFullscreen = !!document.fullscreenElement;
+
+          // 退出全屏
+          if (!isFullscreen) {
+            container.querySelectorAll(".chat-video-wrapper").forEach((wrap) => {
+              const video = wrap.querySelector(".chat-video");
+              const btn = wrap.querySelector(".video-play-btn");
+
+              // 停止播放
+              video.pause();
+              video.currentTime = 0;
+
+              // ⭐ 非全屏禁止显示操作栏
+              video.removeAttribute("controls");
+
+              // 恢复中间按钮
+              btn.style.display = "";
+            });
+          }
+        });
+
+        // ⭐ 播放结束
+        // container.addEventListener(
+        //   "ended",
+        //   (e) => {
+        //     if (!e.target.classList.contains("chat-video")) return;
+        //     const video = e.target;
+        //     const wrapper = video.closest(".chat-video-wrapper");
+
+        //     // 自动退出全屏
+        //     if (document.fullscreenElement) {
+        //       document.exitFullscreen();
+        //     }
+
+        //     // 停止 & 重置
+        //     video.pause();
+        //     video.currentTime = 0;
+
+        //     // ⭐ 非全屏不展示操作栏
+        //     video.removeAttribute("controls");
+
+        //     // 按钮回来
+        //     wrapper.querySelector(".video-play-btn").style.display = "";
+        //   },
+        //   true
+        // );
+      }
+
+
+      // let pageScrollTop = 0;
+      // let pageScrollLeft = 0;
+
+      // function bindVideoPlayers(container) {
+      //   container.addEventListener("click", async (e) => {
+      //     const btn = e.target.closest(".video-play-btn");
+      //     if (!btn) return;
+
+      //     const wrapper = btn.closest(".chat-video-wrapper");
+      //     const video = wrapper.querySelector(".chat-video");
+
+      //     // 记录当前滚动位置（防止退出全屏后跳动）
+      //     pageScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      //     pageScrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+      //     // 隐藏中间按钮
+      //     btn.style.display = "none";
+
+      //     // 启用 controls（只在全屏中）
+      //     video.setAttribute("controls", "true");
+
+      //     // 进入全屏
+      //     try {
+      //       if (video.requestFullscreen) {
+      //         await video.requestFullscreen();
+      //       } else if (video.webkitEnterFullscreen) {
+      //         video.webkitEnterFullscreen();
+      //       }
+      //     } catch (err) {
+      //       console.warn("Fullscreen failed:", err);
+      //     }
+
+      //     video.play();
+      //   });
+
+      //   // ⭐ 退出全屏：恢复滚动位置、防止跳动
+      //   document.addEventListener("fullscreenchange", () => {
+      //     const isFullscreen = !!document.fullscreenElement;
+
+      //     if (!isFullscreen) {
+      //       // 恢复滚动位置（防止跳动）
+      //       window.scrollTo(pageScrollLeft, pageScrollTop);
+
+      //       container.querySelectorAll(".chat-video-wrapper").forEach((wrap) => {
+      //         const video = wrap.querySelector(".chat-video");
+      //         const btn = wrap.querySelector(".video-play-btn");
+
+      //         video.pause();
+      //         video.currentTime = 0;
+
+      //         video.removeAttribute("controls");
+
+      //         btn.style.display = "";
+      //       });
+      //     }
+      //   });
+
+      //   container.addEventListener(
+      //     "ended",
+      //     (e) => {
+      //       if (!e.target.classList.contains("chat-video")) return;
+
+      //       // 播放结束退出全屏
+      //       if (document.fullscreenElement) {
+      //         document.exitFullscreen();
+      //       }
+
+      //       // 恢复滚动位置
+      //       window.scrollTo(pageScrollLeft, pageScrollTop);
+
+      //       const video = e.target;
+      //       const wrapper = video.closest(".chat-video-wrapper");
+      //       const btn = wrapper.querySelector(".video-play-btn");
+
+      //       video.pause();
+      //       video.currentTime = 0;
+
+      //       video.removeAttribute("controls");
+
+      //       btn.style.display = "";
+      //     },
+      //     true
+      //   );
+      // }
+
+      // function bindVideoPlayers(container) {
+      //   if (videoBound) return;
+      //   videoBound = true;
+
+      //   container.addEventListener("click", (e) => {
+      //     const wrapper = e.target.closest(".chat-video-wrapper");
+      //     if (!wrapper) return;
+
+      //     const video = wrapper.querySelector(".chat-video");
+      //     const btn = wrapper.querySelector(".video-play-btn");
+
+      //     // 点击播放按钮
+      //     if (e.target.classList.contains("video-play-btn")) {
+      //       video.play();
+      //       btn.classList.add("hidden");
+
+      //       // ⭐ 播放后显示控制栏
+      //       wrapper.classList.add("controls-visible");
+
+      //       return;
+      //     }
+
+      //     // 点击视频区域：切换暂停/播放
+      //     if (e.target.classList.contains("chat-video")) {
+      //       if (video.paused) {
+      //         video.play();
+      //         btn.classList.add("hidden");
+
+      //         // ⭐ 播放时显示控制栏
+      //         wrapper.classList.add("controls-visible");
+      //       } else {
+      //         video.pause();
+      //         btn.classList.remove("hidden");
+
+      //         // ⭐ 暂停时隐藏控制栏
+      //         wrapper.classList.remove("controls-visible");
+      //       }
+      //     }
+      //   });
+
+      //   // 视频结束后：按钮显示、控制栏隐藏
+      //   container.addEventListener("ended", (e) => {
+      //     if (e.target.classList.contains("chat-video")) {
+      //       const wrapper = e.target.closest(".chat-video-wrapper");
+      //       wrapper.querySelector(".video-play-btn").classList.remove("hidden");
+      //       wrapper.classList.remove("controls-visible");
+      //     }
+      //   }, true);
+
+      //   // ⭐ 初始：所有视频的控制栏必须隐藏
+      //   container.querySelectorAll(".chat-video-wrapper").forEach((wrapper) => {
+      //     wrapper.classList.remove("controls-visible");
+      //   });
+      // }
+
+      // 用于跟踪已绑定的元素，避免重复绑定
+      const boundElements = new WeakSet();
+
+      function bindCitationPopovers(container) {
+        const popover = document.getElementById("ep-popover");
+
+
+        function showPopover(link, content) {
+          if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+          }
+          activeLink = link;
+          popover.textContent = content;
+
+          popover.style.display = "block";
+          popover.style.visibility = "hidden"; // 先隐藏计算尺寸
+
+          // 等待浏览器渲染，确保宽高准确
+          requestAnimationFrame(() => {
+            const rect = link.getBoundingClientRect();
+            const popoverWidth = popover.offsetWidth;
+            const popoverHeight = popover.offsetHeight;
+
+            let left = window.scrollX + rect.left + rect.width / 2 - popoverWidth / 2;
+            left = Math.max(left, window.scrollX + 8);
+            left = Math.min(left, window.scrollX + window.innerWidth - popoverWidth - 8);
+
+            let top = window.scrollY + rect.bottom + 8;
+
+            // 如果下方空间不足，改为上方显示
+            if (top + popoverHeight > window.scrollY + window.innerHeight) {
+              top = window.scrollY + rect.top - popoverHeight - 8;
+            }
+
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+            popover.style.visibility = "visible";
+          });
+        }
+
+        function hidePopover() {
+          hideTimer = setTimeout(() => {
+            popover.style.display = "none";
+            activeLink = null;
+          }, 200);
+        }
+
+        container.querySelectorAll(".citation").forEach((link) => {
+          if (link.dataset.popoverBound) return;
+          link.dataset.popoverBound = "true";
+
+          const id = link.textContent.match(/\d+/)?.[0];
+          const content = citationTooltips[id]?.[currentLang] || "暂无说明";
+
+          link.addEventListener("mouseenter", () => showPopover(link, content));
+          link.addEventListener("mouseleave", hidePopover);
+        });
+
+        popover.addEventListener("mouseenter", () => {
+          if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+          }
+        });
+
+        popover.addEventListener("mouseleave", hidePopover);
+      }
       let strData = ''
       // 扩展链接替换函数
       function replaceSpecialLinks(html) {
@@ -171,22 +708,98 @@ function hello() {
           (_, id) => `<a href="/citation/${id}" class="citation" target="_blank">[引用:${id}]</a>`
         );
       }
+      function replacePictureLinks(html) {
+        return html.replace(
+          /\[picture&(\d+)\]/g,
+          (_, id) => `<img class="chat-img" src="${imgList[id - 1]}" alt="默认图片" onerror="this.style.display='none'"></img>`
+        );
+      }
 
+      function replaceVideoLinks(html) {
+        return html.replace(
+          /\[video&(\d+)\]/g,
+          (_, id) => `<div class="chat-video-wrapper">
+  <video class="chat-video" src="${videoList[id - 1]}"></video>
+  <div class="video-play-btn"></div>
+</div>`
+        );
+      }
       // 执行自动滚动的函数
       function scrollToBottom() {
         if (autoScroll) {
           container.scrollTop = container.scrollHeight;
         }
       }
+      function scrollHeight(resultHeight) {
+        if (resultHeight > 200 && !isExpand) {
+          if (timer) return
+          timer = setTimeout(() => {
+            expand.style.display = 'flex';
+            timer = null
+          }, 300)
+        } else {
+          clearInterval(timer)
+          timer = null
+          expand.style.display = 'none';
+        }
+      }
+      function rafDebounce(fn) {
+        let ticking = false
 
+        return function (...args) {
+          if (ticking) return
+          ticking = true
+
+          requestAnimationFrame(() => {
+            fn.apply(this, args)
+            ticking = false
+          })
+        }
+      }
+      const observerScrollHeight = () => {
+        const el = document.querySelector('#result')
+        if (!el) return
+
+        let lastScrollHeight = el.scrollHeight
+
+        const handleResize = rafDebounce(() => {
+          const newScrollHeight = el.scrollHeight
+          if (newScrollHeight !== lastScrollHeight) {
+            scrollHeight(newScrollHeight)
+            lastScrollHeight = newScrollHeight
+          }
+        })
+
+        const ro = new ResizeObserver(handleResize)
+        ro.observe(el)
+
+        return () => ro.disconnect()
+      }
+
+      observerScrollHeight()
+      // setTimeout(async () => {
+
+      //   const replaced = md.render(replaceVideoLinks(replacePictureLinks(replaceSpecialLinks(fullContent))));
+      //   // morphdom 最小化更新
+      //   morphdom(container, `<div id="result">${replaced}</div>`);
+      //   // scrollToBottom();
+      //   // 绑定最新元素事件
+      //   bindCitationPopovers(container);
+      //   bindImageValidityChecks(container);
+      //   bindVideoPlayers(container);
+      // }, 2000)
       for (let i = 0; i < fullContent.length; i++) {
-        setTimeout(() => {
+        setTimeout(async () => {
           strData += fullContent[i]
-          const rendered = md.render(strData);
-          const replaced = replaceSpecialLinks(rendered);
+
+          const replaced = md.render(replaceVideoLinks(replacePictureLinks(replaceSpecialLinks(strData))));
           // morphdom 最小化更新
-          morphdom(container, `<div id="stream-output">${replaced}</div>`);
-          scrollToBottom();
+          morphdom(container, `<div id="result">${replaced}</div>`);
+          // scrollToBottom();
+          // 绑定最新元素事件
+          bindCitationPopovers(container);
+          bindImageValidityChecks(container);
+          bindVideoPlayers(container);
         }, i * 100)
       }
     });
