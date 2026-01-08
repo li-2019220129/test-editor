@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Markdown示例</title>
+  <!-- 添加markdown-it的CDN引用 -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it/dist/markdown-it.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/morphdom@2/dist/morphdom-umd.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.5/viewer.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/viewerjs/1.11.5/viewer.min.js"></script>
+
+  <!-- 添加jQuery的CDN引用 -->
+  <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  <!-- highlight.js 样式 -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@latest/build/styles/github.min.css">
+
+  <!-- 浏览器可用 highlight.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+  <!-- markdown-it-highlightjs 插件浏览器版本 -->
+  <script src="https://cdn.jsdelivr.net/npm/markdown-it-highlightjs@4.2.0/dist/index.js"></script>
+  <style>
+    #editor {
+      width: 100%;
+      height: 150px;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ccc;
+    }
+
+    .stream-output {
+      position: relative;
+      border: 1px solid #ddd;
+      padding: 15px;
+      margin-top: 20px;
+      min-height: 200px;
+      max-height: 200px;
+      background-color: #f0f8ff;
+      font-family: monospace;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      interpolate-size: allow-keywords;
+    }
+
+    .stream-output-max {
+      max-height: fit-content;
+    }
+
+    .expand {
+      display: none;
+      position: absolute;
+      bottom: 0px;
+      right: 0px;
+      width: 100%;
+      background: #fff;
+      opacity: 0.5;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    .close {
+      display: none;
+      position: absolute;
+      bottom: 0px;
+      width: 100%;
+      background: #fff;
+      opacity: 0.5;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+
+    #raw-text {
+      display: none;
+    }
+
+    button {
+      padding: 8px 15px;
+      margin-right: 10px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #45a049;
+    }
+
+    .token {
+      opacity: 0;
+      transition: opacity 0.01s ease;
+    }
+
+    .token.visible {
+      opacity: 1;
+    }
+
+    .chat-img {
+      /* max-width: 100%;
+      width: 512px;
+      display: block;
+      object-fit: cover; */
+      max-width: 100%;
+      min-width: 220px;
+      max-height: 200px;
+      display: block;
+      object-fit: cover;
+    }
+
+    .chat-video-wrapper {
+      position: relative;
+      width: 512px;
+      max-width: 100%;
+      margin: 10px 0;
+    }
+
+    .chat-video {
+      width: 100%;
+      border-radius: 6px;
+      background: black;
+    }
+
+    /* 中间大播放按钮 */
+    .video-play-btn {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 64px;
+      height: 64px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-play-btn::before {
+      content: "";
+      display: block;
+      width: 0;
+      height: 0;
+      border-left: 20px solid white;
+      border-top: 12px solid transparent;
+      border-bottom: 12px solid transparent;
+      margin-left: 6px;
+    }
+
+    /* .video-play-btn.hidden {
+      display: none;
+    }
+
+    .chat-video-wrapper video::-webkit-media-controls {
+      opacity: 0 !important;
+    }
+
+    .chat-video-wrapper.controls-visible video::-webkit-media-controls {
+      opacity: 1 !important;
+    }
+
+    .chat-video-wrapper.controls-visible:not(:hover) video::-webkit-media-controls {
+      opacity: 0 !important;
+    } */
+  </style>
+
+</head>
+
+<body>
+  <div id="ep-popover" class="el-popover el-popper" style="
+  position: absolute;
+  display: none;
+  background-color: white;
+  border: 1px solid #ebeef5;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+  padding: 10px;
+  font-size: 12px;
+  color: #303133;
+  border-radius: 4px;
+  z-index: 2000;
+  max-width: 300px;
+"></div>
+  <h1>ChatGPT风格的逐字显示</h1>
+
+  <div>
+    <button id="start-stream">开始流式输出</button>
+    <button id="reset">重置</button>
+    <label>
+      <input type="checkbox" id="skip-animation" />
+      跳过动画
+    </label>
+  </div>
+
+  <h2>流式输出</h2>
+  <div class="stream-output">
+    <div id="result"></div>
+    <div class="expand">展开</div>
+    <div class="close">收起</div>
+  </div>
+  <div id="raw-text"></div>
+
+  <script>
+    let isExpand = false;
+    let timer = null
+    const imgList = [
+      'https://i.postimg.cc/KYXD32mV/wei-xin-tu-pian-20230607094259.jpg',
+      'https://i.postimg.cc/j5cb1Wcs/hintersee-3601004-1280.jpg',
+      "https://i.postimg.cc/QMqw82T2/wei-xin-tu-pian-20230607093008.jpg",
+    ]
+    const videoList = [
+      'https://www.w3schools.com/html/mov_bbb.mp4'
+    ]
+    const citationTooltips = {
+      456: {
+        en: "This is a citation tooltip in English.",
+        zh: "这是中文引用说明123",
+        ja: "これは日本語の引用説明です。",
+        ko: "이것은 한글 용언입니다.",
+        fr: "Ceci est une explication de citation en français.",
+        de: "Dies ist eine Zitierhinweis in Deutsch.",
+        es: "Esto es una cita en español.",
+      },
+      789: {
+        en: "This is another citation tooltip in English.",
+        zh: "这是中文引用说明wewerwerwerwer456这是中文引用说明wewerwerwerwer456",
+        ja: "これは日本語の引用説明です。",
+        ko: "이것은 한글 용언입니다.",
+        fr: "Ceci est une explication de citation en français.",
+        de: "Dies ist eine Zitierhinweis in Deutsch.",
+        es: "Esto es una cita en español.",
+      }
+    }
+    const currentLang = 'zh'
+    $(document).ready(function () {
+      const popover = document.getElementById("ep-popover");
+      const container = document.getElementById('result');
+      const expand = document.querySelector('.expand');
+      const close = document.querySelector('.close');
+      expand.addEventListener('click', () => {
+        isExpand = true;
+        container.parentElement.classList.add('stream-output-max');
+        expand.style.display = 'none';
+        clearInterval(timer)
+        timer = null
+        setTimeout(() => {
+          close.style.display = 'flex';
+        }, 300);
+      });
+      close.addEventListener('click', () => {
+        isExpand = false;
+        container.parentElement.classList.remove('stream-output-max');
+        close.style.display = 'none';
+        setTimeout(() => {
+          expand.style.display = 'flex';
+        }, 300);
+      });
+      let userScrolled = false;
+      let autoScroll = true;
+      let activeLink = null;
+      let hideTimer = null;
+      function updatePopoverPosition() {
+        if (!activeLink || popover.style.display === "none") return;
+
+        const rect = activeLink.getBoundingClientRect();
+        const popoverWidth = popover.offsetWidth;
+        const popoverHeight = popover.offsetHeight;
+
+        let left = window.scrollX + rect.left + rect.width / 2 - popoverWidth / 2;
+        left = Math.max(left, window.scrollX + 8);
+        left = Math.min(left, window.scrollX + window.innerWidth - popoverWidth - 8);
+
+        let top = window.scrollY + rect.bottom + 8;
+
+        if (top + popoverHeight > window.scrollY + window.innerHeight) {
+          top = window.scrollY + rect.top - popoverHeight - 8;
+        }
+
+        popover.style.left = `${left}px`;
+        popover.style.top = `${top}px`;
+      }
+      // 监听滚动事件
+      container.addEventListener('scroll', function () {
+        // 检查是否是用户主动滚动
+        const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 5;
+
+        if (!isAtBottom) {
+          // 用户向上滚动，停止自动滚动
+          autoScroll = false;
+        } else {
+          // 用户滚动到底部，恢复自动滚动
+          autoScroll = true;
+        }
+        updatePopoverPosition()
+      });
+
+      // 完整的测试文本
+      const fullContent = `
+<p>尊敬的开发者您好，一个主体只能在开发者联盟认证一个账号，若您之前在其他账号名下认证过，则<span style=\"color: #e64c4c;\"><strong>不可重复认证</strong></span>，<span style=\"color: #e64c4c;\"><strong>不可解绑和换绑认证信息</strong></span></p><p>如您忘记在开发者联盟实名认证的账号，请点击<a target=\"_blank\" rel=\"noopener noreferrer\" href=\"https://developer.huawei.com/consumer/cn/verified/developerQuery\">账号查询</a>，按照页面要求提供相关材料，<strong>1-2个工作日完成审核</strong>，审核通过后，会为您找回账号。</p>`
+        ;
+
+      // 初始化markdown-it
+      // 初始化markdown-it
+      const md = window.markdownit({
+        html: true,
+        highlight: function (str, lang) {
+          let codeHtml = "";
+          if (lang && hljs.getLanguage(lang)) {
+            try {
+              codeHtml =
+                hljs.highlight(str, { language: lang, ignoreIllegals: true }).value;
+            } catch (__) { }
+          } else {
+            codeHtml = md.utils.escapeHtml(str);
+          }
+
+          // 增加一个工具栏，包含语言和复制按钮
+          const languageLabel = lang || "text";
+
+          return `
+<div class="code-block-wrapper">
+  <div class="code-toolbar">
+    <span class="code-lang">${languageLabel}</span>
+    <button class="copy-btn" onclick="copyCode(this)">复制</button>
+  </div>
+  <pre class="hljs"><code>${codeHtml}</code></pre>
+</div>`;
+        },
+      });
+
+
+      let viewer = null;
+
+      function bindImageValidityChecks(container) {
+
+        // 1) 校验图片有效性
+        container.querySelectorAll("img.chat-img").forEach(img => {
+          if (img.dataset._checked) return;
+          img.dataset._checked = "1";
+
+          const removeIfBad = () => {
+            if (img.naturalWidth === 0) img.remove();
+          };
+
+          if (img.decode) {
+            img.decode().then(removeIfBad).catch(() => img.remove());
+          } else {
+            img.addEventListener("load", removeIfBad, { once: true });
+            img.addEventListener("error", () => img.remove(), { once: true });
+            setTimeout(removeIfBad, 2000);
+          }
+        });
+
+
+      }
+      viewer = new Viewer(container, {
+        navbar: false,
+        toolbar: false,
+        movable: true,
+        zoomable: true,
+        title: false,
+        hidden() {
+          document.activeElement?.blur?.();
+        }
+      });
+      const imgClickHandler = () => {
+        // 2) 点击预览（事件委托）
+        if (!container.dataset._viewerBound) {
+          container.dataset._viewerBound = "1";
+
+          container.addEventListener("click", e => {
+            const img = e.target.closest("img.chat-img");
+            if (!img) return;
+            console.log("clicked img");
+            img.blur();
+            // 初始化 Viewer（只一次）
+            const imgs = [...container.querySelectorAll("img.chat-img")];
+            // ⭐ 关键：每次点击时刷新列表（解决最后几张加载后无法预览的问题）
+            viewer.update();
+
+            // 展示对应图片
+            viewer.view(imgs.indexOf(img));
+          });
+        }
+      };
+
+      imgClickHandler()
+
+      let videoBound = false;
+
+      function bindVideoPlayers(container) {
+        container.addEventListener("click", async (e) => {
+          const btn = e.target.closest(".video-play-btn");
+          if (!btn) return;
+
+          const wrapper = btn.closest(".chat-video-wrapper");
+          const video = wrapper.querySelector(".chat-video");
+
+          // 隐藏中间按钮
+          btn.style.display = "none";
+
+          // ⭐ 全屏时才启用 controls
+          video.setAttribute("controls", "true");
+
+          // 进入全屏
+          try {
+            if (video.requestFullscreen) {
+              await video.requestFullscreen();
+            } else if (video.webkitEnterFullscreen) {
+              video.webkitEnterFullscreen(); // iOS
+            }
+          } catch (err) {
+            console.warn("Fullscreen failed:", err);
+          }
+
+          // 播放
+          video.play();
+        });
+
+        // ⭐ 退出全屏：停止 + 重置 + 隐藏 controls + 显示按钮
+        document.addEventListener("fullscreenchange", () => {
+          const isFullscreen = !!document.fullscreenElement;
+
+          // 退出全屏
+          if (!isFullscreen) {
+            container.querySelectorAll(".chat-video-wrapper").forEach((wrap) => {
+              const video = wrap.querySelector(".chat-video");
+              const btn = wrap.querySelector(".video-play-btn");
+
+              // 停止播放
+              video.pause();
+              video.currentTime = 0;
+
+              // ⭐ 非全屏禁止显示操作栏
+              video.removeAttribute("controls");
+
+              // 恢复中间按钮
+              btn.style.display = "";
+            });
+          }
+        });
+
+        // ⭐ 播放结束
+        // container.addEventListener(
+        //   "ended",
+        //   (e) => {
+        //     if (!e.target.classList.contains("chat-video")) return;
+        //     const video = e.target;
+        //     const wrapper = video.closest(".chat-video-wrapper");
+
+        //     // 自动退出全屏
+        //     if (document.fullscreenElement) {
+        //       document.exitFullscreen();
+        //     }
+
+        //     // 停止 & 重置
+        //     video.pause();
+        //     video.currentTime = 0;
+
+        //     // ⭐ 非全屏不展示操作栏
+        //     video.removeAttribute("controls");
+
+        //     // 按钮回来
+        //     wrapper.querySelector(".video-play-btn").style.display = "";
+        //   },
+        //   true
+        // );
+      }
+
+
+      // let pageScrollTop = 0;
+      // let pageScrollLeft = 0;
+
+      // function bindVideoPlayers(container) {
+      //   container.addEventListener("click", async (e) => {
+      //     const btn = e.target.closest(".video-play-btn");
+      //     if (!btn) return;
+
+      //     const wrapper = btn.closest(".chat-video-wrapper");
+      //     const video = wrapper.querySelector(".chat-video");
+
+      //     // 记录当前滚动位置（防止退出全屏后跳动）
+      //     pageScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      //     pageScrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+
+      //     // 隐藏中间按钮
+      //     btn.style.display = "none";
+
+      //     // 启用 controls（只在全屏中）
+      //     video.setAttribute("controls", "true");
+
+      //     // 进入全屏
+      //     try {
+      //       if (video.requestFullscreen) {
+      //         await video.requestFullscreen();
+      //       } else if (video.webkitEnterFullscreen) {
+      //         video.webkitEnterFullscreen();
+      //       }
+      //     } catch (err) {
+      //       console.warn("Fullscreen failed:", err);
+      //     }
+
+      //     video.play();
+      //   });
+
+      //   // ⭐ 退出全屏：恢复滚动位置、防止跳动
+      //   document.addEventListener("fullscreenchange", () => {
+      //     const isFullscreen = !!document.fullscreenElement;
+
+      //     if (!isFullscreen) {
+      //       // 恢复滚动位置（防止跳动）
+      //       window.scrollTo(pageScrollLeft, pageScrollTop);
+
+      //       container.querySelectorAll(".chat-video-wrapper").forEach((wrap) => {
+      //         const video = wrap.querySelector(".chat-video");
+      //         const btn = wrap.querySelector(".video-play-btn");
+
+      //         video.pause();
+      //         video.currentTime = 0;
+
+      //         video.removeAttribute("controls");
+
+      //         btn.style.display = "";
+      //       });
+      //     }
+      //   });
+
+      //   container.addEventListener(
+      //     "ended",
+      //     (e) => {
+      //       if (!e.target.classList.contains("chat-video")) return;
+
+      //       // 播放结束退出全屏
+      //       if (document.fullscreenElement) {
+      //         document.exitFullscreen();
+      //       }
+
+      //       // 恢复滚动位置
+      //       window.scrollTo(pageScrollLeft, pageScrollTop);
+
+      //       const video = e.target;
+      //       const wrapper = video.closest(".chat-video-wrapper");
+      //       const btn = wrapper.querySelector(".video-play-btn");
+
+      //       video.pause();
+      //       video.currentTime = 0;
+
+      //       video.removeAttribute("controls");
+
+      //       btn.style.display = "";
+      //     },
+      //     true
+      //   );
+      // }
+
+      // function bindVideoPlayers(container) {
+      //   if (videoBound) return;
+      //   videoBound = true;
+
+      //   container.addEventListener("click", (e) => {
+      //     const wrapper = e.target.closest(".chat-video-wrapper");
+      //     if (!wrapper) return;
+
+      //     const video = wrapper.querySelector(".chat-video");
+      //     const btn = wrapper.querySelector(".video-play-btn");
+
+      //     // 点击播放按钮
+      //     if (e.target.classList.contains("video-play-btn")) {
+      //       video.play();
+      //       btn.classList.add("hidden");
+
+      //       // ⭐ 播放后显示控制栏
+      //       wrapper.classList.add("controls-visible");
+
+      //       return;
+      //     }
+
+      //     // 点击视频区域：切换暂停/播放
+      //     if (e.target.classList.contains("chat-video")) {
+      //       if (video.paused) {
+      //         video.play();
+      //         btn.classList.add("hidden");
+
+      //         // ⭐ 播放时显示控制栏
+      //         wrapper.classList.add("controls-visible");
+      //       } else {
+      //         video.pause();
+      //         btn.classList.remove("hidden");
+
+      //         // ⭐ 暂停时隐藏控制栏
+      //         wrapper.classList.remove("controls-visible");
+      //       }
+      //     }
+      //   });
+
+      //   // 视频结束后：按钮显示、控制栏隐藏
+      //   container.addEventListener("ended", (e) => {
+      //     if (e.target.classList.contains("chat-video")) {
+      //       const wrapper = e.target.closest(".chat-video-wrapper");
+      //       wrapper.querySelector(".video-play-btn").classList.remove("hidden");
+      //       wrapper.classList.remove("controls-visible");
+      //     }
+      //   }, true);
+
+      //   // ⭐ 初始：所有视频的控制栏必须隐藏
+      //   container.querySelectorAll(".chat-video-wrapper").forEach((wrapper) => {
+      //     wrapper.classList.remove("controls-visible");
+      //   });
+      // }
+
+      // 用于跟踪已绑定的元素，避免重复绑定
+      const boundElements = new WeakSet();
+
+      function bindCitationPopovers(container) {
+        const popover = document.getElementById("ep-popover");
+
+
+        function showPopover(link, content) {
+          if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+          }
+          activeLink = link;
+          popover.textContent = content;
+
+          popover.style.display = "block";
+          popover.style.visibility = "hidden"; // 先隐藏计算尺寸
+
+          // 等待浏览器渲染，确保宽高准确
+          requestAnimationFrame(() => {
+            const rect = link.getBoundingClientRect();
+            const popoverWidth = popover.offsetWidth;
+            const popoverHeight = popover.offsetHeight;
+
+            let left = window.scrollX + rect.left + rect.width / 2 - popoverWidth / 2;
+            left = Math.max(left, window.scrollX + 8);
+            left = Math.min(left, window.scrollX + window.innerWidth - popoverWidth - 8);
+
+            let top = window.scrollY + rect.bottom + 8;
+
+            // 如果下方空间不足，改为上方显示
+            if (top + popoverHeight > window.scrollY + window.innerHeight) {
+              top = window.scrollY + rect.top - popoverHeight - 8;
+            }
+
+            popover.style.left = `${left}px`;
+            popover.style.top = `${top}px`;
+            popover.style.visibility = "visible";
+          });
+        }
+
+        function hidePopover() {
+          hideTimer = setTimeout(() => {
+            popover.style.display = "none";
+            activeLink = null;
+          }, 200);
+        }
+
+        container.querySelectorAll(".citation").forEach((link) => {
+          if (link.dataset.popoverBound) return;
+          link.dataset.popoverBound = "true";
+
+          const id = link.textContent.match(/\d+/)?.[0];
+          const content = citationTooltips[id]?.[currentLang] || "暂无说明";
+
+          link.addEventListener("mouseenter", () => showPopover(link, content));
+          link.addEventListener("mouseleave", hidePopover);
+        });
+
+        popover.addEventListener("mouseenter", () => {
+          if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+          }
+        });
+
+        popover.addEventListener("mouseleave", hidePopover);
+      }
+      let strData = ''
+      // 扩展链接替换函数
+      function replaceSpecialLinks(html) {
+        return html.replace(
+          /\[citation:(\d+)\]/g,
+          (_, id) => `<a href="/citation/${id}" class="citation" target="_blank">[引用:${id}]</a>`
+        );
+      }
+      function replacePictureLinks(html) {
+        return html.replace(
+          /\[picture&(\d+)\]/g,
+          (_, id) => `<img class="chat-img" src="${imgList[id - 1]}" alt="默认图片" onerror="this.style.display='none'"></img>`
+        );
+      }
+
+      function replaceVideoLinks(html) {
+        return html.replace(
+          /\[video&(\d+)\]/g,
+          (_, id) => `<div class="chat-video-wrapper">
+  <video class="chat-video" src="${videoList[id - 1]}"></video>
+  <div class="video-play-btn"></div>
+</div>`
+        );
+      }
+      // 执行自动滚动的函数
+      function scrollToBottom() {
+        if (autoScroll) {
+          container.scrollTop = container.scrollHeight;
+        }
+      }
+      function scrollHeight(resultHeight) {
+        if (resultHeight > 200 && !isExpand) {
+          if (timer) return
+          timer = setTimeout(() => {
+            expand.style.display = 'flex';
+            timer = null
+          }, 300)
+        } else {
+          clearInterval(timer)
+          timer = null
+          expand.style.display = 'none';
+        }
+      }
+      function rafDebounce(fn) {
+        let ticking = false
+
+        return function (...args) {
+          if (ticking) return
+          ticking = true
+
+          requestAnimationFrame(() => {
+            fn.apply(this, args)
+            ticking = false
+          })
+        }
+      }
+      const observerScrollHeight = () => {
+        const el = document.querySelector('#result')
+        if (!el) return
+
+        let lastScrollHeight = el.scrollHeight
+
+        const handleResize = rafDebounce(() => {
+          const newScrollHeight = el.scrollHeight
+          if (newScrollHeight !== lastScrollHeight) {
+            scrollHeight(newScrollHeight)
+            lastScrollHeight = newScrollHeight
+          }
+        })
+
+        const ro = new ResizeObserver(handleResize)
+        ro.observe(el)
+
+        return () => ro.disconnect()
+      }
+
+      observerScrollHeight()
+      // setTimeout(async () => {
+      //   let content = await replacePictureLinks(replaceSpecialLinks(fullContent))
+
+      //   const replaced = md.render(replaceVideoLinks(content));
+      //   // morphdom 最小化更新
+      //   morphdom(container, `<div id="result">${replaced}</div>`);
+      //   // scrollToBottom();
+      //   // 绑定最新元素事件
+      //   bindImageValidityChecks(container);
+      //   bindVideoPlayers(container);
+      // }, 0)
+      // bindCitationPopovers(container);
+
+      // 流式数据处理系统
+      class StreamingTypewriter {
+        constructor() {
+          this.container = container;
+          this.wrapper = container.parentElement;
+          this.expandBtn = expand;
+          this.closeBtn = close;
+          this.config = {
+            tagDelay: 30,
+            textDelay: 80
+          };
+
+          // 状态管理
+          this.dataBuffer = '';
+          this.displayContent = '';
+          this.inTag = false;
+          this.currentTag = '';
+          this.lastRenderTime = 0;
+          this.nextRenderTime = 0;
+          this.isRunning = false;
+
+          // 绑定事件
+          this.bindEvents();
+        }
+
+        bindEvents() {
+          // 绑定开始按钮事件
+          document.getElementById('start-stream').addEventListener('click', () => {
+            this.startMockStream();
+          });
+
+          // 绑定重置按钮事件
+          document.getElementById('reset').addEventListener('click', () => {
+            this.reset();
+          });
+        }
+
+        // 处理流式数据
+        handleStreamData(data) {
+          // 1. 先处理Markdown格式
+          let processedData = data;
+
+          // 2. 替换特殊链接
+          processedData = replaceSpecialLinks(processedData);
+
+          // 3. 替换图片链接
+          processedData = replacePictureLinks(processedData);
+
+          // 4. 替换视频链接
+          processedData = replaceVideoLinks(processedData);
+
+          // 5. 渲染Markdown为HTML
+          processedData = md.render(processedData);
+
+          // 6. 将处理后的HTML添加到缓冲区
+          this.dataBuffer += processedData;
+
+          // 7. 开始处理数据
+          if (!this.isRunning) {
+            this.isRunning = true;
+            requestAnimationFrame(this.typeNext.bind(this));
+          }
+        }
+
+        // 智能处理数据
+        processData() {
+          if (!this.dataBuffer) return null;
+          
+          // 如果正在解析标签，继续解析
+          if (this.inTag) {
+            // 检查是否有完整的标签结束
+            let tagEndIndex = this.dataBuffer.indexOf('>');
+            
+            if (tagEndIndex !== -1) {
+              // 临时拼接完整标签进行检查
+              const tempTag = this.currentTag + this.dataBuffer.substring(0, tagEndIndex + 1);
+              
+              // 检查标签是否完整（特别处理属性值被拆分的情况）
+              const isTagComplete = this.isTagComplete(tempTag);
+              
+              if (isTagComplete) {
+                // 标签完整，返回处理
+                this.currentTag += this.dataBuffer.substring(0, tagEndIndex + 1);
+                this.dataBuffer = this.dataBuffer.substring(tagEndIndex + 1);
+                this.inTag = false;
+                return { type: 'tag', content: this.currentTag };
+              } else {
+                // 标签不完整，继续等待更多数据
+                this.currentTag += this.dataBuffer;
+                this.dataBuffer = '';
+                return null;
+              }
+            }
+            
+            // 没有找到标签结束符，继续等待
+            this.currentTag += this.dataBuffer;
+            this.dataBuffer = '';
+            return null;
+          }
+          
+          // 查找下一个标签开始位置
+          const tagStartIndex = this.dataBuffer.indexOf('<');
+          if (tagStartIndex === 0) {
+            // 开始新标签
+            this.inTag = true;
+            this.currentTag = '<';
+            this.dataBuffer = this.dataBuffer.substring(1);
+            return this.processData();
+          } else if (tagStartIndex > 0) {
+            // 有文本内容
+            const text = this.dataBuffer.substring(0, tagStartIndex);
+            this.dataBuffer = this.dataBuffer.substring(tagStartIndex);
+            return { type: 'text', content: text };
+          } else {
+            // 只有文本
+            const text = this.dataBuffer;
+            this.dataBuffer = '';
+            return { type: 'text', content: text };
+          }
+        }
+        
+        // 检查标签是否完整
+        isTagComplete(tag) {
+          // 1. 检查是否有完整的结束符
+          if (!tag.endsWith('>')) {
+            return false;
+          }
+          
+          // 2. 检查所有属性是否完整
+          // 检查引号匹配情况
+          const quotes = tag.match(/['"]/g);
+          if (quotes && quotes.length % 2 !== 0) {
+            return false;
+          }
+          
+          // 3. 检查特殊标签的特殊属性
+          if (tag.toLowerCase().startsWith('<a')) {
+            // 检查a标签的href属性
+            const hrefRegex = /href\s*=\s*(['"])(.*?)\1/;
+            const hrefMatch = tag.match(hrefRegex);
+            if (!hrefMatch) {
+              // 如果没有href属性，检查是否是自闭合标签
+              if (!tag.endsWith('/>')) {
+                // 检查是否有其他必要属性
+                // 对于a标签，没有href也可以接受（比如javascript:;）
+                return true;
+              }
+            }
+          }
+          
+          // 4. 检查是否有未闭合的括号
+          const openBrackets = (tag.match(/\(/g) || []).length;
+          const closeBrackets = (tag.match(/\)/g) || []).length;
+          if (openBrackets !== closeBrackets) {
+            return false;
+          }
+          
+          // 5. 检查是否有未闭合的方括号
+          const openBrackets2 = (tag.match(/\[/g) || []).length;
+          const closeBrackets2 = (tag.match(/\]/g) || []).length;
+          if (openBrackets2 !== closeBrackets2) {
+            return false;
+          }
+          
+          // 6. 检查是否有未闭合的大括号
+          const openBrackets3 = (tag.match(/{/g) || []).length;
+          const closeBrackets3 = (tag.match(/}/g) || []).length;
+          if (openBrackets3 !== closeBrackets3) {
+            return false;
+          }
+          
+          return true;
+        }
+
+        // 打字机效果
+        typeNext(timestamp) {
+          // 初始化时间
+          if (!this.lastRenderTime) this.lastRenderTime = timestamp;
+
+          // 检查是否到了渲染时间
+          if (timestamp >= this.nextRenderTime) {
+            const part = this.processData();
+
+            if (part) {
+              if (part.type === 'tag') {
+                // 完整显示标签
+                this.displayContent += part.content;
+                this.updateDisplay();
+                // 设置下一次渲染时间
+                this.lastRenderTime = timestamp;
+                this.nextRenderTime = timestamp + this.config.tagDelay;
+              } else {
+                // 逐字显示文本
+                if (part.content.length > 0) {
+                  // 只显示第一个字符
+                  this.displayContent += part.content.charAt(0);
+                  // 剩余字符放回缓冲区
+                  if (part.content.length > 1) {
+                    this.dataBuffer = part.content.substring(1) + this.dataBuffer;
+                  }
+                  this.updateDisplay();
+                  // 设置下一次渲染时间
+                  this.lastRenderTime = timestamp;
+                  this.nextRenderTime = timestamp + this.config.textDelay;
+                }
+              }
+            } else if (this.dataBuffer) {
+              // 还有数据在缓冲区，但需要等待更多数据
+              this.lastRenderTime = timestamp;
+              this.nextRenderTime = timestamp + 50; // 50ms后再次检查
+            } else {
+              // 数据处理完成
+              this.isRunning = false;
+              this.bindEventsAfterComplete();
+              return;
+            }
+          }
+
+          // 继续下一帧
+          requestAnimationFrame(this.typeNext.bind(this));
+        }
+
+        // 更新显示
+        updateDisplay() {
+          // 最小化DOM更新
+          morphdom(this.container, `<div id="result">${this.displayContent}</div>`);
+          this.scrollToBottom();
+        }
+
+        // 滚动到底部
+        scrollToBottom() {
+          if (autoScroll) {
+            this.container.scrollTop = this.container.scrollHeight;
+          }
+        }
+
+        // 绑定事件（完成后）
+        bindEventsAfterComplete() {
+          bindCitationPopovers(this.container);
+          bindImageValidityChecks(this.container);
+          bindVideoPlayers(this.container);
+        }
+
+        // 模拟后端流式返回数据
+        startMockStream() {
+          // 模拟多次返回的数据
+          const mockData = [
+            '121212122[citation:456][citation:456]',
+            '[picture&1][picture&2][picture&3]',
+            '<p>尊敬的开发者您好，一个主体只能在开发者联盟认证一个账号，',
+            '若您之前在其他账号名下认证过，则<span style="color: #e64c4c;"><strong>不可重复认证</strong></span>，',
+            '<span style="color: #e64c4c;"><strong>不可解绑和换绑认证信息</strong></span></p>',
+            '<p>如您忘记在开发者联盟实名认证的账号，请点击',
+            '若您之前在其他账号名下认证过，则若您之前在其他账号名下认证过，则若您之前在其他账号名下认证过，则若您之前在其他账号名下认证过，则若您之前在其他账号名下认证过，则若您之前在其他账号名下认证过，则<a target="_blank" rel="noopener noreferrer" href="https://developer.huawei.com/consumer/cn/verified/developerQuery"><a target="_blank" rel="noopener noreferrer" href="https://developer.huawei.com/consumer/cn/verified/developerQuery"><a target="_blank" rel="noopener noreferrer" href="https://developer.huawei.com/consumer/cn/verified/developerQuery"><a target="_blank" rel="noopener noreferrer" href="https://developer.huawei.com/consumer/cn/verified/developerQu',
+            'ery">账号查询</a>，按照页面要求提供相关材料，<strong>1-2个工作日完成审核</strong>，',
+            '审核通过后，会为您找回账号。</p>'
+          ];
+
+          let index = 0;
+          const sendNextChunk = () => {
+            if (index < mockData.length) {
+              this.handleStreamData(mockData[index]);
+              index++;
+              setTimeout(sendNextChunk, 1000); // 模拟1秒返回一个数据块
+            }
+          };
+
+          sendNextChunk();
+        }
+
+        // 重置
+        reset() {
+          this.dataBuffer = '';
+          this.displayContent = '';
+          this.inTag = false;
+          this.currentTag = '';
+          this.isRunning = false;
+          this.updateDisplay();
+          this.expandBtn.style.display = 'none';
+          this.closeBtn.style.display = 'none';
+          this.wrapper.classList.remove('stream-output-max');
+        }
+      }
+
+      // 初始化流式打字机
+      const typewriter = new StreamingTypewriter();
+
+      // 初始启动模拟流
+      // typewriter.startMockStream();
+    });
+  </script>
+</body>
+
+</html>
